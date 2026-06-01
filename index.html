@@ -66,10 +66,14 @@
         if(!snap.empty){
           const arr = snap.docs.map(d=>({...d.data(), _fbId:d.id}));
           // Fusionar con DB local (Firestore tiene prioridad si no está vacío)
-          // Actualizar DB (window.DB es el mismo objeto)
-        if(window.DB){ 
-          window.DB[col] = arr;
-          // También asegurar que nxt se mantiene
+          // Solo actualizar si Firestore tiene datos O si ya había datos en esa colección
+        // NUNCA sobreescribir con array vacío (colección no creada aún en Firestore)
+        if(window.DB){
+          if(arr.length > 0){
+            window.DB[col] = arr;
+          }
+          // Si arr está vacío pero DB ya tiene datos locales, mantener los locales
+          // Firestore creará la colección cuando se guarde algo por primera vez
         }
         }
       }
@@ -147,21 +151,25 @@
     if(!window.DB || !window.FB_ONLINE) return;
     for(const col of DB_COLS){
       const snap = await fsdb.collection(col).limit(1).get();
-      if(snap.empty && Array.isArray(window.DB[col]) && window.DB[col].length > 0){
-        console.log('Subiendo datos iniciales a Firestore:', col);
+      // Solo subir si Firestore está vacío Y DB tiene datos locales
+      const localData = window.DB[col];
+      if(snap.empty && Array.isArray(localData) && localData.length > 0){
+        console.log('Subiendo datos iniciales a Firestore:', col, localData.length, 'docs');
         const batch = fsdb.batch();
-        window.DB[col].forEach(item=>{
-          const id = String(item.id || Date.now());
+        localData.forEach(item=>{
+          const id = String(item.id || item._fbId || Date.now());
           batch.set(fsdb.collection(col).doc(id), cleanObj(item));
         });
         await batch.commit();
+        console.log('Subido:', col);
       }
     }
-    // Subir nxt
+    // Subir nxt counters
     const nxtSnap = await fsdb.collection('_meta').doc('nxt').get();
     if(!nxtSnap.exists && window.DB.nxt){
       await fsdb.collection('_meta').doc('nxt').set(cleanObj(window.DB.nxt));
     }
+    console.log('Seed completado.');
   }
 
   // ── Inicialización principal ─────────────────────────────────────
