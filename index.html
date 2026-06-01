@@ -544,8 +544,8 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="login-error" id="loginError">⚠️ Usuario o contraseña incorrectos</div>
     </div>
     <div class="login-footer-r">
-      <div id="loginFbBadge" style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;border:1.5px solid #d1d5db;border-radius:20px;padding:4px 14px;margin-bottom:10px;font-size:.76rem;font-weight:700;color:#6b7280;">
-        <span style="font-size:.9rem;">🔄</span> Conectando a Firebase...
+      <div id="loginFbBadge" style="display:none;align-items:center;gap:6px;background:#f1f5f9;border:1.5px solid #d1d5db;border-radius:20px;padding:4px 14px;margin-bottom:10px;font-size:.76rem;font-weight:700;color:#6b7280;">
+        <span style="font-size:.9rem;">🔄</span> Conectando...
       </div><br>
       <span>ROGASEV Multiservice</span><br>
       Carretera la Penda, tramo La Vega–Santiago · Tel.: 809-854-3148<br>
@@ -1133,16 +1133,37 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="form-row"><label class="form-label">Contraseña</label><input type="password" class="form-control" id="uPass"></div>
       <div class="form-row"><label class="form-label">Rol</label><select class="form-control" id="uRol"><option value="admin">Administrador</option><option value="operador">Operador</option></select></div>
     </div>
-    <div class="form-row mt-3"><label class="form-label">Módulos Permitidos</label>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;" id="modulesCheck">
-        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="vehiculos"> Órdenes Trabajo</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="facturacion"> Facturación</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="clientes"> Clientes</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="empleados"> Empleados</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="suplidores"> Suplidores</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="caja"> Caja</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="reportes"> Reportes</label>
+    <div class="form-row mt-3">
+      <label class="form-label">Módulos Permitidos <span style="color:var(--text2);font-size:.75rem;font-weight:400;">(Solo aplica a Operadores)</span></label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;" id="modulesCheck">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="vehiculos"> 🔧 Órdenes de Trabajo</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="recepcion"> 📋 Recepción</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="facturacion"> 🧾 Facturación / CXC</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="clientes"> 👥 Clientes</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="empleados"> 👷 Empleados</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="suplidores"> 🏭 Suplidores</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="materiales"> 📦 Materiales</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="inventario"> 📊 Inventario / Kardex</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="cxp"> 💸 CXP — Por Pagar</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="caja"> 💰 Caja</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="bancos"> 🏦 Cuentas Bancarias</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="reportes"> 📈 Reportes</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="config"> ⚙️ Configuración</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="bitacora"> 📒 Bitácora</label>
       </div>
+    </div>
+    <div class="form-row mt-3">
+      <label class="form-label">Permisos de Acción <span style="color:var(--text2);font-size:.75rem;font-weight:400;">(Solo aplica a Operadores)</span></label>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;" id="permisosCheck">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="perm_editar"> ✏️ Puede editar registros</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="perm_borrar"> 🗑️ Puede borrar registros</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="perm_cobrar"> 💰 Puede registrar cobros</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding:5px;border-radius:6px;border:1px solid var(--border);"><input type="checkbox" value="perm_pagar"> 💳 Puede registrar pagos CXP</label>
+      </div>
+    </div>
+    <div id="adminNote" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 14px;margin:8px 0;font-size:.82rem;color:var(--info);align-items:center;gap:8px;">
+      <span style="font-size:1rem;">ℹ️</span>
+      <span>El <strong>Administrador</strong> tiene acceso a <strong>todos los módulos</strong> y <strong>todos los permisos</strong> automáticamente. Las opciones de arriba solo aplican a Operadores.</span>
     </div>
     <div class="form-row mt-3"><label class="form-label">Estado</label><select class="form-control" id="uEstado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
     </div>
@@ -1155,6 +1176,25 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
 window.DB=window.DB||{};let DB={users:[{id:1,user:'admin',pass:'admin123',nombre:'Administrador',rol:'admin',modulos:['dashboard','vehiculos','facturacion','clientes','empleados','suplidores','caja','reportes','usuarios'],estado:'activo'},{id:2,user:'operador',pass:'op123',nombre:'Operador General',rol:'operador',modulos:['vehiculos','facturacion','clientes','caja'],estado:'activo'}],clientes:[{id:1,nombre:'KENUMAR AUTO IMPORT',rnc:'1231312313',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-777-7777',tel2:'829-123-4567'},{id:2,nombre:'ZYRLE AUTO',rnc:'',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-326-2222',tel2:''},{id:3,nombre:'ANDY & JULIAN AUTO',rnc:'',dir:'AUTOPISTA DUARTE KM 12',ciudad:'SANTIAGO',tel1:'8298300202',tel2:''},{id:4,nombre:'KENUAN AUTOSALE',rnc:'',dir:'AUTOPISTA DUARTE KM 13',ciudad:'SANTIAGO',tel1:'8292631406',tel2:''},{id:5,nombre:'RIVAS Y TAPIA AUTO',rnc:'',dir:'AUTOPISTA DUARTE',ciudad:'SANTIAGO',tel1:'8093086215',tel2:''},{id:6,nombre:'TESORO IMPORT',rnc:'',dir:'AUTOPISTA DUARTE KM 14',ciudad:'SANTIAGO',tel1:'8093539874',tel2:''},{id:7,nombre:'IMPORT INVERSIONES',rnc:'130377022',dir:'SANTO DOMINGO',ciudad:'SANTO DOMINGO',tel1:'8098385232',tel2:''},{id:8,nombre:'FAUSTO PEREZ',rnc:'',dir:'LA ZURZA',ciudad:'SANTIAGO',tel1:'8093605084',tel2:''}],empleados:[{id:1,nombre:'JUAN CARLOS MOREL',cargo:'PINTOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:2,nombre:'PEDRO MARTINEZ',cargo:'DESABOLLADOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:3,nombre:'CARLOS REYES',cargo:'PREPARADOR',tipo:'FIJO',tarifa:15000,tel:'',fecha:'2022-06-01',estado:'ACTIVO'}],suplidores:[{id:1,nombre:'FATI AUTO PINTURA',ncf:'131941915',dir:'CALLE COLON, 77',ciudad:'MOCA',tel1:'829-599-5020',tel2:''},{id:2,nombre:'REPUESTO LA PRESA',ncf:'',dir:'',ciudad:'',tel1:'',tel2:''}],vehiculos:[{id:1,chasis:'113155',vehiculo:'TOYOTA RAV4 NEGRO 14',clienteId:1,color:'NEGRO',fecha:'2024-01-15',monto:38000,montoPag:38000,estatus:'PENDIENTE',obs:'',piezas:{paint:['BONETE','CAPOTA'],dent:[],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Pintura completa vehículo',monto:8000,pagado:false}]},{id:2,chasis:'501889',vehiculo:'SUBARU FORESTER NEGRO 18',clienteId:4,color:'NEGRO PERLA',fecha:'2024-02-20',monto:17500,montoPag:17500,estatus:'EN PROCESO',obs:'',piezas:{paint:['BONETE','BUMPER TRAS.'],dent:['GUARDA LODO DEL. L'],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Bonete y bumper trasero',monto:5000,pagado:false},{empId:2,tipoTrabajo:'Desabolladura',desc:'Guarda lodo delantero L',monto:1800,pagado:true}]},{id:3,chasis:'7644724',vehiculo:'KIA SPORTAGE 19 BLANCO',clienteId:3,color:'BLANCO',fecha:'2024-04-18',monto:13000,montoPag:13000,estatus:'PARA ENTREGA',obs:'',piezas:{paint:[],dent:[],prep:[],brill:[]},ajustes:[]}],facturas:[{id:1,fecha:'2024-04-13',clienteId:8,vehiculo:'TOYOTA COROLLA AZUL 03',chasis:'30351',color:'',tipoVeh:'CARRO',items:[{desc:'PINTURA COMPLETA',ud:1,precio:50000},{desc:'RETROVISORES',ud:1,precio:12300}],subtotal:62300,itbis:0,aplicaItbis:false,dcto:0,total:62300,estatus:'PAGADO',obs:''},{id:2,fecha:'2024-04-20',clienteId:7,vehiculo:'SUBARU FORESTER NEGRO 18',chasis:'501889',color:'NEGRO PERLA',tipoVeh:'JEEP/SUV',items:[{desc:'BONETE',ud:1,precio:3500},{desc:'BUMPER TRASERO',ud:1,precio:3500},{desc:'RETROVISORES',ud:1,precio:3500}],subtotal:10500,itbis:1890,aplicaItbis:true,dcto:0,total:12390,estatus:'PENDIENTE',obs:'BASE ESPEJO BMW'}],caja:[{id:1,fecha:'2024-03-10',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'ABONO FACTURAS FATI',factura:'3236',mover:'SALIDA',moneda:'PESOS',monto:50000,estatus:'PAGADO',persona:'FATI AUTO PINTURA'},{id:2,fecha:'2024-04-23',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'MATERIALES PINTURA',factura:'41479',mover:'ENTRADA',moneda:'PESOS',monto:16965,estatus:'POR PAGAR',persona:'FATI AUTO PINTURA'},{id:3,fecha:'2024-04-24',tipo:'EFECTIVO',cuenta:'CAJA FUERTE EN PESOS',desc:'COBRO CLIENTE FAUSTO',factura:'0001',mover:'ENTRADA',moneda:'PESOS',monto:62300,estatus:'COBRADO',persona:'FAUSTO PEREZ'}],nxt:{v:4,f:3,c:9,e:4,s:3,cj:4,u:3}};
 window.DB=DB; // exponer para módulo Firebase
 let CU=null,editId={v:null,f:null,c:null,e:null,s:null,cj:null,u:null};
+
+// ── Control de permisos ──────────────────────────────────────────────
+function canDo(accion){
+  if(!CU) return false;
+  if(CU.rol==='admin') return true;
+  return (CU.permisos||[]).includes(accion);
+}
+function canEdit(){ return canDo('perm_editar'); }
+function canDelete(){ return canDo('perm_borrar'); }
+function canCobrar(){ return canDo('perm_cobrar'); }
+function canPagar(){ return canDo('perm_pagar'); }
+function requirePerm(accion,fn){
+  if(canDo(accion)){ fn(); }
+  else {
+    const label={perm_editar:'editar registros',perm_borrar:'borrar registros',
+      perm_cobrar:'registrar cobros',perm_pagar:'registrar pagos'};
+    toast(`⛔ Sin permiso: ${label[accion]||accion}. Contacte al administrador.`,'error');
+  }
+}
 let curWT='paint',selParts={paint:[],dent:[],prep:[],brill:[]};
 // pieceStatus: {PIEZA: {type:'paint', status:'working|pending|approved|rejected', obs:'', techId:0}}
 let pieceStatus = {};
@@ -1239,10 +1279,10 @@ if(v.fechaEntrega&&v.estatus!=='ENTREGADO'){
   else if(dfe===0) alertaEnt='<span class="badge badge-danger" style="font-size:.65rem;display:block;margin-top:2px;">🔴 HOY</span>';
   else if(dfe<=2) alertaEnt='<span class="badge badge-warning" style="font-size:.65rem;display:block;margin-top:2px;">⚠️ '+dfe+'d</span>';
 }
-return`<tr><td>${v.id}</td><td class="fw-600">${v.chasis||'-'}</td><td><span class="fw-600">${v.vehiculo}</span><br><small style="color:var(--text2);">${v.color}</small></td><td style="font-size:.82rem;">${cl?.nombre||'-'}</td><td style="font-size:.8rem;">${emp||'-'}</td><td>${fmtD(v.fecha)}</td><td style="font-size:.79rem;">${v.fechaEntrega?fmtD(v.fechaEntrega):'—'}${alertaEnt}</td><td class="fw-600">${fmt(v.monto)}</td><td class="fw-600 text-warning">${totalAj>0?fmt(totalAj):'—'}</td><td><span class="badge badge-${sM[v.estatus]||'info'}">${v.estatus}</span></td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openVehModal(${v.id})">✏️</button><button class="btn-icon pay" onclick="openPagoEmp(${v.id})" title="Ajustes técnicos" ${ajP===0?'style="opacity:.4"':''}>💵</button><button class="btn-icon" onclick="openAprobacion(${v.id})" title="Aprobación piezas" style="background:rgba(22,163,74,.08);border-color:#86efac;">✅</button><button class="btn-icon" onclick="openMatRequest(${v.id})" title="Asignar materiales" 
+return`<tr><td>${v.id}</td><td class="fw-600">${v.chasis||'-'}</td><td><span class="fw-600">${v.vehiculo}</span><br><small style="color:var(--text2);">${v.color}</small></td><td style="font-size:.82rem;">${cl?.nombre||'-'}</td><td style="font-size:.8rem;">${emp||'-'}</td><td>${fmtD(v.fecha)}</td><td style="font-size:.79rem;">${v.fechaEntrega?fmtD(v.fechaEntrega):'—'}${alertaEnt}</td><td class="fw-600">${fmt(v.monto)}</td><td class="fw-600 text-warning">${totalAj>0?fmt(totalAj):'—'}</td><td><span class="badge badge-${sM[v.estatus]||'info'}">${v.estatus}</span></td><td><div class="flex gap-2">${canEdit()?`<button class="btn-icon edit" onclick="openVehModal(${v.id})">✏️</button>`:''}<button class="btn-icon pay" onclick="openPagoEmp(${v.id})" title="Ajustes técnicos" ${ajP===0?'style="opacity:.4"':''}>💵</button><button class="btn-icon" onclick="openAprobacion(${v.id})" title="Aprobación piezas" style="background:rgba(22,163,74,.08);border-color:#86efac;">✅</button><button class="btn-icon" onclick="openMatRequest(${v.id})" title="Asignar materiales" 
   style="background:rgba(37,99,235,.08);border-color:#93c5fd;position:relative;">
   📦${(v.materialesUsados||[]).length>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--info);color:#fff;border-radius:50%;width:15px;height:15px;font-size:.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;">${v.materialesUsados.length}</span>`:''}
-</button><button class="btn-icon" onclick="genFact(${v.id})">🧾</button>${v.estatus!=='ENTREGADO'?`<button class="btn-icon" onclick="cerrarOrden(${v.id})" title="Entregar al cliente" style="background:rgba(16,163,74,.1);border-color:#86efac;color:#15803d;">🚪</button>`:'<button class="btn-icon" style="opacity:.35;cursor:default;" disabled title="Ya entregado">✅</button>'}<button class="btn-icon del" onclick="delVeh(${v.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="10" class="text-center" style="padding:24px;color:var(--text2);">Sin registros</td></tr>';}
+</button><button class="btn-icon" onclick="genFact(${v.id})">🧾</button>${v.estatus!=='ENTREGADO'?`<button class="btn-icon" onclick="cerrarOrden(${v.id})" title="Entregar al cliente" style="background:rgba(16,163,74,.1);border-color:#86efac;color:#15803d;">🚪</button>`:'<button class="btn-icon" style="opacity:.35;cursor:default;" disabled title="Ya entregado">✅</button>'}${canDelete()?`<button class="btn-icon del" onclick="delVeh(${v.id})">🗑️</button>`:''}</div></td></tr>`;}).join('')||'<tr><td colspan="10" class="text-center" style="padding:24px;color:var(--text2);">Sin registros</td></tr>';}
 function openVehModal(id=null){editId.v=id;selParts={paint:[],dent:[],prep:[],brill:[]};document.getElementById('vehModalTitle').textContent=id?'Editar Orden':'Nueva Orden de Trabajo';document.getElementById('vCliente').innerHTML=DB.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');document.getElementById('empAjusteBody').innerHTML='';if(id){const v=DB.vehiculos.find(x=>x.id===id);document.getElementById('vChasis').value=v.chasis;document.getElementById('vNombre').value=v.vehiculo;document.getElementById('vCliente').value=v.clienteId;document.getElementById('vColor').value=v.color;document.getElementById('vFecha').value=v.fecha;document.getElementById('vMonto').value=v.monto;document.getElementById('vMontoPag').value=v.montoPag||0;document.getElementById('vEstatus').value=v.estatus;document.getElementById('vObs').value=v.obs||'';selParts=JSON.parse(JSON.stringify(v.piezas||{paint:[],dent:[],prep:[],brill:[]}));(v.ajustes||[]).forEach(aj=>addEmpRow(aj));}else{['vChasis','vNombre','vColor','vObs'].forEach(i=>document.getElementById(i).value='');['vMonto','vMontoPag'].forEach(i=>document.getElementById(i).value='');document.getElementById('vEstatus').value='EN PROCESO';addEmpRow();}renderPartsGrid();openModal('vehModal');}
 function saveVeh(){const nom=document.getElementById('vNombre').value.trim();if(!nom){toast('Ingrese el nombre del vehículo','error');return;}const ajustes=[];document.querySelectorAll('#empAjusteBody tr').forEach(tr=>{const s=tr.querySelectorAll('select'),inp=tr.querySelectorAll('input');const eId=+s[0].value,tT=s[1].value,d=inp[0].value,m=+inp[1].value||0;if(eId&&m>0)ajustes.push({empId:eId,tipoTrabajo:tT,desc:d,monto:m,pagado:false});});const obj={chasis:document.getElementById('vChasis').value.trim(),vehiculo:nom.toUpperCase(),clienteId:+document.getElementById('vCliente').value,color:document.getElementById('vColor').value.trim().toUpperCase(),fecha:document.getElementById('vFecha').value,monto:+document.getElementById('vMonto').value||0,montoPag:+document.getElementById('vMontoPag').value||0,estatus:document.getElementById('vEstatus').value,obs:document.getElementById('vObs').value,piezas:JSON.parse(JSON.stringify(selParts)),ajustes};if(editId.v){obj.id=editId.v;DB.vehiculos[DB.vehiculos.findIndex(x=>x.id===editId.v)]=obj;toast('Orden actualizada ✓');logBit('ORDEN','Orden editada',`${obj.vehiculo} — Estatus: ${obj.estatus}`);}else{obj.id=DB.nxt.v++;DB.vehiculos.push(obj);toast('Orden creada ✓');logBit('ORDEN','Nueva orden',`${obj.vehiculo} — Cliente: ${DB.clientes.find(c=>c.id===obj.clienteId)?.nombre||'-'}`);}closeModal('vehModal');window.fbSaveDoc?.('vehiculos',obj);renderVeh();}
 
@@ -1344,8 +1384,8 @@ function renderFact(search='',filtroEstatus=''){
       <td><div class="flex gap-2">
         <button class="btn-icon" onclick="viewInv(${f.id})" title="Imprimir">🖨️</button>
         ${pendiente>0?`<button class="btn btn-sm btn-success" onclick="registrarAbono(${f.id})">💰 Cobrar</button>`:''}
-        <button class="btn-icon edit" onclick="openFactModal(${f.id})">✏️</button>
-        <button class="btn-icon del" onclick="delFact(${f.id})">🗑️</button>
+        ${canEdit()?`<button class="btn-icon edit" onclick="openFactModal(${f.id})">✏️</button>`:''}
+        ${canDelete()?`<button class="btn-icon del" onclick="delFact(${f.id})">🗑️</button>`:''}
       </div></td>
     </tr>`;
   }).join('')||'<tr><td colspan="12" class="text-center" style="padding:24px;color:var(--text2);">Sin facturas</td></tr>';
@@ -1525,7 +1565,7 @@ function renderEmpPagosTab(){
 }
 
 function renderEmp(s=''){let d=DB.empleados;if(s)d=d.filter(e=>(e.nombre+e.cargo).toLowerCase().includes(s.toLowerCase()));const ajPT=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>!aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const ajPaT=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const fiT=DB.empleados.filter(e=>e.tipo==='FIJO').reduce((a,e)=>a+e.tarifa,0);document.getElementById('empStats').innerHTML=`<div class="stat-card blue"><div class="stat-icon">👷</div><div class="stat-value">${DB.empleados.length}</div><div class="stat-label">Total Empleados</div></div><div class="stat-card red"><div class="stat-icon">🔧</div><div class="stat-value">${DB.empleados.filter(e=>e.tipo==='AJUSTE').length}</div><div class="stat-label">Por Ajuste</div></div><div class="stat-card purple"><div class="stat-icon">💼</div><div class="stat-value">${fmt(fiT)}</div><div class="stat-label">Salarios Fijos/Mes</div></div><div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${fmt(ajPT)}</div><div class="stat-label">Ajustes Pendientes</div></div><div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${fmt(ajPaT)}</div><div class="stat-label">Ajustes Pagados</div></div>`;
-document.getElementById('empTable').innerHTML=d.map(e=>{const tB=e.tipo==='FIJO'?'<span class="badge badge-secondary">💼 FIJO</span>':'<span class="badge badge-primary">🔧 AJUSTE</span>';return`<tr><td>${e.id}</td><td class="fw-600">${e.nombre}</td><td><span class="badge badge-info">${e.cargo}</span></td><td>${tB}</td><td>${e.tipo==='FIJO'?fmt(e.tarifa)+' / mes':'Por orden'}</td><td><span class="badge badge-success">${e.estado}</span></td><td><div class="flex gap-2"><button class="btn btn-sm btn-warning" onclick="openEmpPagos(${e.id})">💰 Pagos</button><button class="btn-icon edit" onclick="openEmpModal(${e.id})">✏️</button><button class="btn-icon del" onclick="delEmp(${e.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin empleados</td></tr>';}
+document.getElementById('empTable').innerHTML=d.map(e=>{const tB=e.tipo==='FIJO'?'<span class="badge badge-secondary">💼 FIJO</span>':'<span class="badge badge-primary">🔧 AJUSTE</span>';return`<tr><td>${e.id}</td><td class="fw-600">${e.nombre}</td><td><span class="badge badge-info">${e.cargo}</span></td><td>${tB}</td><td>${e.tipo==='FIJO'?fmt(e.tarifa)+' / mes':'Por orden'}</td><td><span class="badge badge-success">${e.estado}</span></td><td><div class="flex gap-2"><button class="btn btn-sm btn-warning" onclick="openEmpPagos(${e.id})">💰 Pagos</button>${canEdit()?`<button class="btn-icon edit" onclick="openEmpModal(${e.id})">✏️</button>`:''}${canDelete()?`<button class="btn-icon del" onclick="delEmp(${e.id})">🗑️</button>`:''}</div></td></tr>`;}).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin empleados</td></tr>';}
 function onEmpTipoChange(){const t=document.getElementById('eTipo').value;document.getElementById('eTarifaLabel').textContent=t==='FIJO'?'Salario Mensual (RD$)':'Tarifa Referencial (RD$)';document.getElementById('empTipoInfo').innerHTML=t==='FIJO'?'💡 <strong>Salario Fijo:</strong> El empleado cobra un monto fijo mensual.':'💡 <strong>Por Ajuste:</strong> El admin registra manualmente el monto en cada orden. Gestione pagos con el botón 💵 en Órdenes de Trabajo.';}
 function openEmpModal(id=null){editId.e=id;document.getElementById('empModalTitle').textContent=id?'Editar Empleado':'Nuevo Empleado';if(id){const e=DB.empleados.find(x=>x.id===id);document.getElementById('eNombre').value=e.nombre;document.getElementById('eCargo').value=e.cargo;document.getElementById('eTipo').value=e.tipo;document.getElementById('eTarifa').value=e.tarifa;document.getElementById('eTel').value=e.tel;document.getElementById('eFecha').value=e.fecha;onEmpTipoChange();}else{['eNombre','eTel'].forEach(i=>document.getElementById(i).value='');document.getElementById('eTarifa').value='';document.getElementById('eCargo').value='PINTOR';document.getElementById('eTipo').value='AJUSTE';onEmpTipoChange();}openModal('empModal');}
 function saveEmp(){const n=document.getElementById('eNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),cargo:document.getElementById('eCargo').value,tipo:document.getElementById('eTipo').value,tarifa:+document.getElementById('eTarifa').value||0,tel:document.getElementById('eTel').value,fecha:document.getElementById('eFecha').value,estado:'ACTIVO'};if(editId.e){obj.id=editId.e;DB.empleados[DB.empleados.findIndex(x=>x.id===editId.e)]=obj;toast('Empleado actualizado ✓');}else{obj.id=DB.nxt.e++;DB.empleados.push(obj);toast('Empleado guardado ✓');}window.fbSaveDoc?.('empleados',obj);closeModal('empModal');renderEmp();}
@@ -1658,9 +1698,100 @@ document.getElementById('reportContent').innerHTML=`<div class="stats-grid"><div
 <div class="report-card"><h4>🏆 Top Órdenes por Ganancia</h4>${topOrds.map(v=>{const g=calcGananciaOrden(v);const cl=DB.clientes.find(c=>c.id===v.clienteId);return`<div class="progress-item"><div class="progress-label"><span style="font-size:.78rem;">${v.vehiculo}</span><span class="fw-600 ${g>=0?'text-success':'text-danger'}">${fmt(g)}</span></div><div style="font-size:.74rem;color:var(--text2);">M.O: ${fmt(v.monto)} — Ajustes: ${fmt(v.ajustes.reduce((a,aj)=>a+aj.monto,0))}</div></div>`;}).join('')||'<p style="font-size:.82rem;color:var(--text2);">Sin datos</p>'}</div>
 <div class="report-card"><h4>👥 Top Clientes por Facturación</h4>${topCli.filter(c=>c.total>0).map(c=>`<div class="progress-item"><div class="progress-label"><span style="font-size:.8rem;">${c.nombre}</span><span class="fw-600 text-success">${fmt(c.total)}</span></div></div>`).join('')||'<p style="font-size:.82rem;color:var(--text2);">Sin datos</p>'}</div>
 </div>`;}
-function renderUsers(){document.getElementById('userTable').innerHTML=DB.users.map(u=>{const m=u.rol==='admin'?'<span class="badge badge-success">Todos los módulos</span>':u.modulos.filter(x=>x!=='dashboard').map(m=>`<span class="badge badge-info" style="margin:1px;font-size:.68rem;">${m}</span>`).join('');return`<tr><td>${u.id}</td><td class="fw-600">${u.user}</td><td>${u.nombre}</td><td><span class="badge ${u.rol==='admin'?'badge-primary':'badge-secondary'}">${u.rol==='admin'?'👑 Admin':'⚙️ Operador'}</span></td><td style="max-width:200px;">${m}</td><td><span class="badge ${u.estado==='activo'?'badge-success':'badge-danger'}">${u.estado}</span></td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openUserModal(${u.id})">✏️</button><button class="btn-icon del" onclick="delUser(${u.id})" ${u.user==='admin'?'disabled style="opacity:.35"':''}>🗑️</button></div></td></tr>`;}).join('');}
-function openUserModal(id=null){editId.u=id;document.getElementById('userModalTitle').textContent=id?'Editar Usuario':'Nuevo Usuario';if(id){const u=DB.users.find(x=>x.id===id);document.getElementById('uUser').value=u.user;document.getElementById('uNombre').value=u.nombre;document.getElementById('uPass').value=u.pass;document.getElementById('uRol').value=u.rol;document.getElementById('uEstado').value=u.estado;document.querySelectorAll('#modulesCheck input').forEach(cb=>cb.checked=u.modulos.includes(cb.value));}else{['uUser','uNombre','uPass'].forEach(i=>document.getElementById(i).value='');document.getElementById('uRol').value='operador';document.getElementById('uEstado').value='activo';document.querySelectorAll('#modulesCheck input').forEach(cb=>cb.checked=false);}openModal('userModal');}
-function saveUser(){const usr=document.getElementById('uUser').value.trim(),pass=document.getElementById('uPass').value.trim();if(!usr||!pass){toast('Ingrese usuario y contraseña','error');return;}const mods=[...document.querySelectorAll('#modulesCheck input:checked')].map(c=>c.value);const obj={user:usr,pass,nombre:document.getElementById('uNombre').value,rol:document.getElementById('uRol').value,modulos:document.getElementById('uRol').value==='admin'?['dashboard','vehiculos','facturacion','clientes','empleados','suplidores','materiales','cxp','cxc','caja','reportes','bitacora','usuarios']:['dashboard',...mods],estado:document.getElementById('uEstado').value};if(editId.u){obj.id=editId.u;DB.users[DB.users.findIndex(x=>x.id===editId.u)]=obj;toast('Usuario actualizado ✓');}else{if(DB.users.find(u=>u.user===usr)){toast('Usuario ya existe','error');return;}obj.id=DB.nxt.u++;DB.users.push(obj);toast('Usuario creado ✓');}closeModal('userModal');renderUsers();}
+function renderUsers(){
+  document.getElementById('userTable').innerHTML=DB.users.map(u=>{
+    const isAdmin=u.rol==='admin';
+    const mods=isAdmin?'<span class="badge badge-success" style="font-size:.68rem;">Todos los módulos</span>':
+      (u.modulos||[]).filter(x=>x!=='dashboard').map(m=>`<span class="badge badge-info" style="margin:1px;font-size:.65rem;">${m}</span>`).join('');
+    const perms=isAdmin?'<span class="badge badge-success" style="font-size:.68rem;">Todos los permisos</span>':
+      (u.permisos||[]).length?
+      (u.permisos.includes('perm_editar')?'<span class="badge badge-info" style="font-size:.65rem;margin:1px;">✏️ Editar</span>':'')+
+      (u.permisos.includes('perm_borrar')?'<span class="badge badge-danger" style="font-size:.65rem;margin:1px;">🗑️ Borrar</span>':'')+
+      (u.permisos.includes('perm_cobrar')?'<span class="badge badge-success" style="font-size:.65rem;margin:1px;">💰 Cobrar</span>':'')+
+      (u.permisos.includes('perm_pagar')?'<span class="badge badge-warning" style="font-size:.65rem;margin:1px;">💳 Pagar</span>':''):
+      '<span style="color:var(--text2);font-size:.75rem;">Solo lectura</span>';
+    return`<tr>
+      <td>${u.id}</td>
+      <td class="fw-600">${u.user}</td>
+      <td>${u.nombre}</td>
+      <td><span class="badge ${isAdmin?'badge-primary':'badge-secondary'}">${isAdmin?'👑 Admin':'⚙️ Operador'}</span></td>
+      <td style="max-width:180px;font-size:.78rem;">${mods}</td>
+      <td style="max-width:150px;">${perms}</td>
+      <td><span class="badge ${u.estado==='activo'?'badge-success':'badge-danger'}">${u.estado}</span></td>
+      <td><div class="flex gap-2">
+        <button class="btn-icon edit" onclick="openUserModal(${u.id})">✏️</button>
+        <button class="btn-icon del" onclick="delUser(${u.id})" ${u.user==='admin'?'disabled style="opacity:.35"':''}>🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function openUserModal(id=null){
+  editId.u=id;
+  document.getElementById('userModalTitle').textContent=id?'Editar Usuario':'Nuevo Usuario';
+  const u=id?DB.users.find(x=>x.id===id):null;
+  if(u){
+    document.getElementById('uUser').value=u.user;
+    document.getElementById('uNombre').value=u.nombre;
+    document.getElementById('uPass').value=u.pass;
+    document.getElementById('uRol').value=u.rol;
+    document.getElementById('uEstado').value=u.estado;
+    document.querySelectorAll('#modulesCheck input').forEach(cb=>cb.checked=u.modulos?.includes(cb.value));
+    document.querySelectorAll('#permisosCheck input').forEach(cb=>cb.checked=(u.permisos||[]).includes(cb.value));
+  } else {
+    ['uUser','uNombre','uPass'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('uRol').value='operador';
+    document.getElementById('uEstado').value='activo';
+    document.querySelectorAll('#modulesCheck input').forEach(cb=>cb.checked=false);
+    document.querySelectorAll('#permisosCheck input').forEach(cb=>cb.checked=false);
+  }
+  // Mostrar/ocultar secciones según rol
+  const rol=document.getElementById('uRol');
+  function togglePerms(){
+    const isAdmin=rol.value==='admin';
+    const modsDiv=document.getElementById('modulesCheck').closest('.form-row');
+    const permsDiv=document.getElementById('permisosCheck').closest('.form-row');
+    if(modsDiv) modsDiv.style.opacity=isAdmin?'0.4':'1';
+    if(permsDiv) permsDiv.style.opacity=isAdmin?'0.4':'1';
+    const note=document.getElementById('adminNote');
+    if(note) note.style.display=isAdmin?'flex':'none';
+  }
+  rol.onchange=togglePerms;
+  togglePerms();
+  openModal('userModal');
+}
+function saveUser(){
+  const usr=document.getElementById('uUser').value.trim();
+  const pass=document.getElementById('uPass').value.trim();
+  if(!usr||!pass){toast('Ingrese usuario y contraseña','error');return;}
+  const rol=document.getElementById('uRol').value;
+  const isAdmin=rol==='admin';
+  const ALL_MODS=['dashboard','vehiculos','recepcion','facturacion','clientes','empleados',
+    'suplidores','materiales','inventario','cxp','caja','bancos','reportes','config','bitacora','usuarios'];
+  const mods=isAdmin?ALL_MODS:[...document.querySelectorAll('#modulesCheck input:checked')].map(cb=>cb.value);
+  const perms=isAdmin?['perm_editar','perm_borrar','perm_cobrar','perm_pagar']:
+    [...document.querySelectorAll('#permisosCheck input:checked')].map(cb=>cb.value);
+  const obj={
+    user:usr,pass,
+    nombre:document.getElementById('uNombre').value,
+    rol,
+    modulos:['dashboard',...mods.filter(m=>m!=='dashboard')],
+    permisos:perms,
+    estado:document.getElementById('uEstado').value
+  };
+  if(editId.u){
+    obj.id=editId.u;
+    DB.users[DB.users.findIndex(x=>x.id===editId.u)]=obj;
+    toast('Usuario actualizado ✓');
+  } else {
+    if(DB.users.find(u=>u.user===usr)){toast('Usuario ya existe','error');return;}
+    obj.id=DB.nxt.u++;
+    DB.users.push(obj);
+    toast('Usuario creado ✓');
+  }
+  window.fbSaveDoc?.('users',obj);
+  closeModal('userModal');
+  renderUsers();
+}
 function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;DB.users=DB.users.filter(x=>x.id!==id);renderUsers();toast('Eliminado','info');}); }
 </script>
 
@@ -2041,7 +2172,7 @@ function renderMateriales(s=''){
     <td>${m.id}</td><td class="fw-600">${m.nombre}</td><td><span class="badge badge-info">${m.categoria}</span></td>
     <td>${fmt(m.costo)}</td><td><span class="badge ${m.stock>5?'badge-success':'badge-danger'}">${m.stock}</span></td>
     <td>${m.suplidor||'—'}</td>
-    <td><div class="flex gap-2"><button class="btn-icon edit" onclick="openMatModal(${m.id})">✏️</button><button class="btn-icon del" onclick="delMat(${m.id})">🗑️</button></div></td>
+    <td><div class="flex gap-2">${canEdit()?`<button class="btn-icon edit" onclick="openMatModal(${m.id})">✏️</button>`:''}${canDelete()?`<button class="btn-icon del" onclick="delMat(${m.id})">🗑️</button>`:''}</div></td>
   </tr>`).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin materiales registrados</td></tr>';
 }
 
