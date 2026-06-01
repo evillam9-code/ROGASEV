@@ -423,6 +423,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard"><span class="icon">📊</span>Dashboard</div>
       <div class="nav-item" onclick="showPage('recepcion')" data-page="recepcion"><span class="icon">📋</span>Recepción</div>
       <div class="nav-section">Operaciones</div>
+      <div class="nav-item" onclick="showPage('bancos')" data-page="bancos"><span class="icon">🏦</span>Cuentas Bancarias</div>
       <div class="nav-item" onclick="showPage('suplidores')" data-page="suplidores"><span class="icon">🏭</span>Suplidores</div>
       <div class="nav-item" onclick="showPage('materiales')" data-page="materiales"><span class="icon">📦</span>Materiales</div>
       <div class="nav-item" onclick="showPage('cxp')" data-page="cxp"><span class="icon">💸</span>CXP — Por Pagar</div>
@@ -478,6 +479,18 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       </div>
     </div>
 
+    <!-- CUENTAS BANCARIAS -->
+    <div class="page" id="page-bancos">
+      <div class="page-header">
+        <div><div class="page-title">🏦 Cuentas Bancarias</div><div class="page-subtitle">Gestión de cuentas del negocio</div></div>
+        <button class="btn btn-primary" onclick="openBancoModal()">+ Nueva Cuenta</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Cuentas Registradas</span></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Banco</th><th>N° Cuenta</th><th>Moneda</th><th>Tipo</th><th>Titular</th><th>Acciones</th></tr></thead><tbody id="bancoTable"></tbody></table></div>
+      </div>
+    </div>
+
     <!-- ORDENES -->
     <div class="page" id="page-vehiculos">
       <div class="page-header"><div><div class="page-title">🚗 Órdenes de Trabajo</div><div class="page-subtitle">Registro y seguimiento de vehículos</div></div><button class="btn btn-primary" onclick="openVehModal()">+ Nueva Orden</button></div>
@@ -501,7 +514,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="page-header"><div><div class="page-title">👥 Clientes</div><div class="page-subtitle">Directorio de clientes</div></div><button class="btn btn-primary" onclick="openClientModal()">+ Nuevo Cliente</button></div>
       <div class="card">
         <div class="card-header"><span class="card-title">Listado de Clientes</span><div class="search-box"><input type="text" placeholder="Buscar..." oninput="renderClients(this.value)"></div></div>
-        <div class="table-wrap"><table><thead><tr><th>#</th><th>Nombre</th><th>RNC/Doc</th><th>Ciudad</th><th>Teléfono</th><th>Trabajos</th><th>Por Cobrar</th><th>Acciones</th></tr></thead><tbody id="clientTable"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Nombre</th><th>Tipo Doc</th><th>RNC/Cédula</th><th>Ciudad</th><th>Teléfono</th><th>Trabajos</th><th>Por Cobrar</th><th>Acciones</th></tr></thead><tbody id="clientTable"></tbody></table></div>
       </div>
     </div>
 
@@ -536,7 +549,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="card">
         <div class="card-header"><span class="card-title">Cuentas por Pagar</span></div>
         <div class="table-wrap">
-          <table><thead><tr><th>#</th><th>Suplidor</th><th>Concepto</th><th>Monto</th><th>Vence</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <table><thead><tr><th>#</th><th>Suplidor</th><th>Concepto</th><th>Monto</th><th>Vence</th><th>Cuenta Banco</th><th>Estatus</th><th>Acciones</th></tr></thead>
           <tbody id="cxpTable"></tbody></table>
         </div>
       </div>
@@ -560,13 +573,29 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       </div>
     </div>
 
+    <!-- INVENTARIO -->
+    <div class="page" id="page-inventario">
+      <div class="page-header"><div><div class="page-title">📊 Inventario — Kardex</div><div class="page-subtitle">Movimientos de materiales y stock</div></div></div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-header">
+          <span class="card-title">Resumen de Stock</span>
+          <select id="invMatFilter" class="form-control" style="width:220px;" onchange="renderInventario()"><option value="">Todos los materiales</option></select>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Material</th><th>Categoría</th><th>Costo Unit.</th><th>Stock</th><th>Valor Total</th><th>Forma Pago</th><th>Estatus</th></tr></thead><tbody id="invResumenTable"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">📋 Kardex — Movimientos</span></div>
+        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Material</th><th>Concepto</th><th>Módulo</th><th>Entrada</th><th>Salida</th><th>Stock</th><th>Ref.</th></tr></thead><tbody id="invKardexTable"></tbody></table></div>
+      </div>
+    </div>
+
     <!-- EMPLEADOS -->
     <div class="page" id="page-empleados">
       <div class="page-header"><div><div class="page-title">👷 Empleados</div><div class="page-subtitle">Personal y control de pagos por ajuste</div></div><button class="btn btn-primary" onclick="openEmpModal()">+ Nuevo Empleado</button></div>
       <div class="stats-grid" id="empStats"></div>
       <div class="card">
         <div class="card-header"><span class="card-title">Personal del Taller</span><div class="search-box"><input type="text" placeholder="Buscar..." oninput="renderEmp(this.value)"></div></div>
-        <div class="table-wrap"><table><thead><tr><th>#</th><th>Nombre</th><th>Cargo</th><th>Tipo Pago</th><th>Tarifa/Salario</th><th>Ajustes Pendientes</th><th>Total a Pagar</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="empTable"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Nombre</th><th>Cargo</th><th>Tipo Pago</th><th>Tarifa/Salario</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="empTable"></tbody></table></div>
       </div>
     </div>
 
@@ -575,7 +604,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="page-header"><div><div class="page-title">🏭 Suplidores</div><div class="page-subtitle">Proveedores del taller</div></div><button class="btn btn-primary" onclick="openSupModal()">+ Nuevo Suplidor</button></div>
       <div class="card">
         <div class="card-header"><span class="card-title">Listado de Suplidores</span><div class="search-box"><input type="text" placeholder="Buscar..." oninput="renderSup(this.value)"></div></div>
-        <div class="table-wrap"><table><thead><tr><th>#</th><th>Nombre</th><th>NCF</th><th>Ciudad</th><th>Teléfono</th><th>Total Facturas</th><th>Por Pagar</th><th>Acciones</th></tr></thead><tbody id="supTable"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Nombre</th><th>Tipo Doc</th><th>RNC/Cédula</th><th>Ciudad</th><th>Teléfono</th><th>Acciones</th></tr></thead><tbody id="supTable"></tbody></table></div>
       </div>
     </div>
 
@@ -773,6 +802,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
         </div>
       </div>
       <div class="form-row mt-3"><label class="form-label">Observaciones / Inspección Carrocería</label><textarea class="form-control" id="fObs"></textarea></div>
+      <div class="form-row mt-3"><label class="form-label">Cuenta Bancaria (donde entra el dinero)</label><select id="fCuentaBanco" class="form-control"><option value="">— Seleccionar cuenta (si aplica pago) —</option></select></div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('factModal')">Cancelar</button><button class="btn btn-success" onclick="saveAndPrint()">🖨️ Guardar e Imprimir</button><button class="btn btn-primary" onclick="saveFact()">💾 Guardar</button></div>
   </div>
@@ -791,7 +821,8 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
   <div class="modal"><div class="modal-header"><span class="modal-title" id="clientModalTitle">Nuevo Cliente</span><button class="modal-close" onclick="closeModal('clientModal')">✕</button></div>
     <div class="modal-body"><div class="form-grid">
       <div class="form-row"><label class="form-label">Nombre / Empresa</label><input class="form-control" id="cNombre"></div>
-      <div class="form-row"><label class="form-label">RNC / Documento</label><input class="form-control" id="cRnc"></div>
+      <div class="form-row"><label class="form-label">Tipo Documento</label><select class="form-control" id="cTipoDoc" onchange="cTipoDocChange()"><option value="RNC">RNC (Empresa)</option><option value="CEDULA">Cédula (Persona)</option></select></div>
+      <div class="form-row"><label class="form-label" id="cRncLabel">RNC (000-000000-0)</label><input class="form-control" id="cRnc" placeholder="000-000000-0" oninput="cFmtDoc()"></div>
       <div class="form-row"><label class="form-label">Dirección</label><input class="form-control" id="cDir"></div>
       <div class="form-row"><label class="form-label">Ciudad</label><input class="form-control" id="cCiudad" value="SANTIAGO"></div>
       <div class="form-row"><label class="form-label">Teléfono Celular</label><input class="form-control" id="cTel1"></div>
@@ -824,7 +855,8 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
   <div class="modal"><div class="modal-header"><span class="modal-title" id="supModalTitle">Nuevo Suplidor</span><button class="modal-close" onclick="closeModal('supModal')">✕</button></div>
     <div class="modal-body"><div class="form-grid">
       <div class="form-row"><label class="form-label">Nombre / Empresa</label><input class="form-control" id="sNombre"></div>
-      <div class="form-row"><label class="form-label">NCF</label><input class="form-control" id="sNcf"></div>
+      <div class="form-row"><label class="form-label">Tipo Documento</label><select class="form-control" id="sTipoDoc" onchange="sTipoDocChange()"><option value="RNC">RNC (Empresa)</option><option value="CEDULA">Cédula (Persona)</option></select></div>
+      <div class="form-row"><label class="form-label" id="sRncLabel">RNC (000-000000-0)</label><input class="form-control" id="sNcf" placeholder="000-000000-0" oninput="sFmtDoc()"></div>
       <div class="form-row"><label class="form-label">Dirección</label><input class="form-control" id="sDir"></div>
       <div class="form-row"><label class="form-label">Ciudad</label><input class="form-control" id="sCiudad"></div>
       <div class="form-row"><label class="form-label">Teléfono Suplidor</label><input class="form-control" id="sTel1"></div>
@@ -840,7 +872,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
     <div class="modal-body"><div class="form-grid">
       <div class="form-row"><label class="form-label">Fecha</label><input type="date" class="form-control" id="cajFecha"></div>
       <div class="form-row"><label class="form-label">Tipo</label><select class="form-control" id="cajTipo"><option>CHEQUE</option><option>DEPÓSITO</option><option>EFECTIVO</option><option>RETIRO</option><option>TARJETA</option><option>TRANSFERENCIA</option></select></div>
-      <div class="form-row"><label class="form-label">Cuenta</label><select class="form-control" id="cajCuenta"><option>CAJA FUERTE EN PESOS</option><option>AHORROS POPULAR</option><option>AHORROS BHD</option><option>AHORROS BANRESERVAS</option><option>CORRIENTE BANRESERVAS</option></select></div>
+      <div class="form-row"><label class="form-label">Cuenta Bancaria *</label><select class="form-control" id="cajCuenta"></select></div>
       <div class="form-row"><label class="form-label">Movimiento</label><select class="form-control" id="cajMover"><option>ENTRADA</option><option>SALIDA</option></select></div>
       <div class="form-row"><label class="form-label">Moneda</label><select class="form-control" id="cajMoneda"><option>PESOS</option><option>DÓLARES</option><option>EUROS</option></select></div>
       <div class="form-row"><label class="form-label">Monto</label><input type="number" class="form-control" id="cajMonto" placeholder="0.00"></div>
@@ -904,7 +936,7 @@ function doLogin(){const u=document.getElementById('loginUser').value.trim(),p=d
 function closeWelcome(){document.getElementById('welcomeModal').style.display='none';document.getElementById('mainApp').style.display='block';setTimeout(applyLogoEverywhere,50);document.getElementById('sidebarUser').textContent=CU.nombre;logBit('USUARIO','Inicio de sesión',`${CU.nombre} (${CU.rol})`);document.getElementById('sidebarRole').textContent=CU.rol==='admin'?'Administrador':'Operador';document.getElementById('sidebarAvatar').textContent=CU.nombre[0].toUpperCase();applyPerms();renderDashboard();}
 function doLogout(){CU=null;document.getElementById('mainApp').style.display='none';document.getElementById('loginScreen').style.display='flex';['loginUser','loginPass'].forEach(id=>document.getElementById(id).value='');document.getElementById('loginError').style.display='none';}
 function applyPerms(){const a=CU.rol==='admin';document.querySelectorAll('.admin-only').forEach(el=>el.style.display=a?'':'none');document.querySelectorAll('.nav-item[data-page]').forEach(el=>{const p=el.getAttribute('data-page');el.style.display=(p==='dashboard'||a||CU.modulos.includes(p))?'flex':'none';});}
-function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+name)?.classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelector(`.nav-item[data-page="${name}"]`)?.classList.add('active');const t={dashboard:'Dashboard',vehiculos:'Órdenes de Trabajo',facturacion:'Facturación',clientes:'Clientes',empleados:'Empleados',suplidores:'Suplidores',materiales:'Materiales',cxp:'CXP — Por Pagar',cxc:'CXC — Por Cobrar',caja:'Caja',reportes:'Reportes',inventario:'Inventario — Kardex',recepcion:'Recepción de Vehículo',bitacora:'Bitácora del Sistema',recepcion:'Recepción de Vehículo',config:'Configuración del Sistema',usuarios:'Usuarios'};document.getElementById('topbarTitle').textContent=t[name]||name;const r={dashboard:renderDashboard,vehiculos:()=>renderVeh(),facturacion:()=>renderFact(),clientes:()=>renderClients(),empleados:()=>renderEmp(),suplidores:()=>renderSup(),materiales:()=>renderMateriales(),cxp:()=>renderCXP(),cxc:()=>renderCXC(),caja:()=>renderCaja(),reportes:renderReportes,inventario:renderInventario,recepcion:renderRecepcion,bitacora:()=>renderBitacora(),recepcion:renderRecepcion,config:renderConfig,usuarios:renderUsers};r[name]?.();}
+function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+name)?.classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelector(`.nav-item[data-page="${name}"]`)?.classList.add('active');const t={dashboard:'Dashboard',vehiculos:'Órdenes de Trabajo',facturacion:'Facturación',clientes:'Clientes',empleados:'Empleados',suplidores:'Suplidores',materiales:'Materiales',cxp:'CXP — Por Pagar',cxc:'CXC — Por Cobrar',caja:'Caja',reportes:'Reportes',inventario:'Inventario — Kardex',recepcion:'Recepción de Vehículo',bitacora:'Bitácora del Sistema',config:'Configuración del Sistema',usuarios:'Usuarios',bancos:'Cuentas Bancarias'};document.getElementById('topbarTitle').textContent=t[name]||name;const r={dashboard:renderDashboard,vehiculos:()=>renderVeh(),facturacion:()=>renderFact(),clientes:()=>renderClients(),empleados:()=>renderEmp(),suplidores:()=>renderSup(),materiales:()=>renderMateriales(),cxp:()=>renderCXP(),cxc:()=>renderCXC(),caja:()=>renderCaja(),reportes:renderReportes,inventario:renderInventario,recepcion:renderRecepcion,bitacora:()=>renderBitacora(),config:renderConfig,usuarios:renderUsers,bancos:()=>{renderBancos();populateBancosSelects();}};r[name]?.();}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function toast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=type;t.style.display='block';setTimeout(()=>t.style.display='none',2800);}
@@ -975,28 +1007,140 @@ function openPagoEmp(vId){
 function markPago(vId,idx){DB.vehiculos.find(x=>x.id===vId).ajustes[idx].pagado=true;toast('Ajuste pagado ✓');logBit('AJUSTE','Ajuste pagado',`Orden #${vId} — Ajuste ${idx+1}`);openPagoEmp(vId);renderEmp();}
 function renderFact(search=''){let data=DB.facturas;if(search)data=data.filter(f=>(f.vehiculo+(DB.clientes.find(c=>c.id===f.clienteId)?.nombre||'')+''+f.id).toLowerCase().includes(search.toLowerCase()));const sM={PAGADO:'success',PENDIENTE:'warning',ABONADO:'info'};document.getElementById('factTable').innerHTML=data.map(f=>{const cl=DB.clientes.find(c=>c.id===f.clienteId);return`<tr><td class="fw-600">#${String(f.id).padStart(4,'0')}</td><td>${fmtD(f.fecha)}</td><td style="font-size:.82rem;">${cl?.nombre||'-'}</td><td style="font-size:.8rem;">${f.vehiculo}</td><td>${fmt(f.subtotal)}</td><td>${f.aplicaItbis?`<span class="text-success fw-600">${fmt(f.itbis)}</span>`:'<span style="color:var(--text2);font-size:.78rem;">No aplica</span>'}</td><td class="text-danger">${f.dcto>0?fmt(f.dcto):'-'}</td><td class="fw-600 text-success">${fmt(f.total)}</td><td><span class="badge badge-${sM[f.estatus]||'warning'}">${f.estatus}</span></td><td><div class="flex gap-2"><button class="btn-icon" onclick="viewInv(${f.id})">🖨️</button><button class="btn-icon edit" onclick="openFactModal(${f.id})">✏️</button><button class="btn-icon del" onclick="delFact(${f.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="10" class="text-center" style="padding:24px;color:var(--text2);">Sin facturas</td></tr>';}
 function updateItbisLabel(){const on=document.getElementById('itbisToggle').checked;const lb=document.getElementById('itbisLabel');lb.textContent=on?'✅ Aplica ITBIS':'❌ No aplica';lb.style.color=on?'var(--success)':'var(--text2)';document.getElementById('itbisRow').style.opacity=on?'1':'0.4';}
-function openFactModal(id=null,preV=null){editId.f=id;document.getElementById('factModalTitle').textContent=id?'Editar Factura':'Nueva Factura';document.getElementById('fCliente').innerHTML=DB.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');document.getElementById('fVehiculo').innerHTML='<option value="">-- Seleccione --</option>'+DB.vehiculos.map(v=>`<option value="${v.id}">${v.vehiculo}</option>`).join('');document.getElementById('fFecha').value=new Date().toISOString().split('T')[0];document.getElementById('fDcto').value='0';document.getElementById('fObs').value='';document.getElementById('factItems').innerHTML='';const tog=document.getElementById('itbisToggle');tog.checked=false;updateItbisLabel();if(id){const f=DB.facturas.find(x=>x.id===id);document.getElementById('fCliente').value=f.clienteId;document.getElementById('fChasis').value=f.chasis;document.getElementById('fColor').value=f.color||'';const cl=DB.clientes.find(c=>c.id===f.clienteId);document.getElementById('fTel').value=cl?.tel1||'';document.getElementById('fTipoVeh').value=f.tipoVeh;document.getElementById('fDcto').value=f.dcto;document.getElementById('fEstatus').value=f.estatus;document.getElementById('fObs').value=f.obs||'';tog.checked=f.aplicaItbis;updateItbisLabel();f.items.forEach(it=>addFactRow(it.desc,it.ud,it.precio));}else if(preV){document.getElementById('fCliente').value=preV.clienteId;document.getElementById('fVehiculo').value=preV.id;document.getElementById('fChasis').value=preV.chasis;document.getElementById('fColor').value=preV.color;const cl=DB.clientes.find(c=>c.id===preV.clienteId);document.getElementById('fTel').value=cl?.tel1||'';if(cl?.rnc){tog.checked=true;updateItbisLabel();}addFactRow();}else{addFactRow();}calcTotals();openModal('factModal');}
+function openFactModal(id=null,preV=null){editId.f=id;document.getElementById('factModalTitle').textContent=id?'Editar Factura':'Nueva Factura';document.getElementById('fCliente').innerHTML=DB.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');document.getElementById('fVehiculo').innerHTML='<option value="">-- Seleccione --</option>'+DB.vehiculos.map(v=>`<option value="${v.id}">${v.vehiculo}</option>`).join('');document.getElementById('fFecha').value=new Date().toISOString().split('T')[0];document.getElementById('fDcto').value='0';document.getElementById('fObs').value='';document.getElementById('factItems').innerHTML='';const tog=document.getElementById('itbisToggle');tog.checked=false;updateItbisLabel();if(id){const f=DB.facturas.find(x=>x.id===id);document.getElementById('fCliente').value=f.clienteId;document.getElementById('fChasis').value=f.chasis;document.getElementById('fColor').value=f.color||'';const cl=DB.clientes.find(c=>c.id===f.clienteId);document.getElementById('fTel').value=cl?.tel1||'';document.getElementById('fTipoVeh').value=f.tipoVeh;document.getElementById('fDcto').value=f.dcto;document.getElementById('fEstatus').value=f.estatus;document.getElementById('fObs').value=f.obs||'';tog.checked=f.aplicaItbis;updateItbisLabel();f.items.forEach(it=>addFactRow(it.desc,it.ud,it.precio));}else if(preV){document.getElementById('fCliente').value=preV.clienteId;document.getElementById('fVehiculo').value=preV.id;document.getElementById('fChasis').value=preV.chasis;document.getElementById('fColor').value=preV.color;const cl=DB.clientes.find(c=>c.id===preV.clienteId);document.getElementById('fTel').value=cl?.tel1||'';if(cl?.rnc){tog.checked=true;updateItbisLabel();}addFactRow();}else{addFactRow();}calcTotals();populateBancosSelects();openModal(`factModal`);}
 function addFactRow(desc='',ud=1,precio=0){const tr=document.createElement('tr');tr.innerHTML=`<td><input class="form-control" value="${desc}" placeholder="Descripción pieza/servicio" style="width:100%;"></td><td><input type="number" class="form-control" value="${ud}" min="1" oninput="calcTotals()" style="width:65px;"></td><td><input type="number" class="form-control" value="${precio}" oninput="calcTotals()" placeholder="0"></td><td><button class="btn-icon del" onclick="this.closest('tr').remove();calcTotals()">✕</button></td>`;document.getElementById('factItems').appendChild(tr);calcTotals();}
 function calcTotals(){let sub=0;document.querySelectorAll('#factItems tr').forEach(tr=>{const i=tr.querySelectorAll('input');sub+=(+i[1].value||1)*(+i[2].value||0);});const aI=document.getElementById('itbisToggle').checked;const itbis=aI?Math.round(sub*0.18):0;const dc=+document.getElementById('fDcto').value||0;document.getElementById('fSub').textContent=fmt(sub);document.getElementById('fItbis').textContent=aI?fmt(itbis):'No aplica';document.getElementById('fDcto2').textContent=fmt(dc);document.getElementById('fTotal').textContent=fmt(sub+itbis-dc);}
-function saveFact(){const items=[];let sub=0;document.querySelectorAll('#factItems tr').forEach(tr=>{const i=tr.querySelectorAll('input');const p=(+i[1].value||1)*(+i[2].value||0);items.push({desc:i[0].value,ud:+i[1].value,precio:+i[2].value});sub+=p;});const aI=document.getElementById('itbisToggle').checked;const itbis=aI?Math.round(sub*0.18):0;const dc=+document.getElementById('fDcto').value||0;const obj={fecha:document.getElementById('fFecha').value,clienteId:+document.getElementById('fCliente').value,vehiculo:document.getElementById('fVehiculo').options[document.getElementById('fVehiculo').selectedIndex]?.text||'N/A',chasis:document.getElementById('fChasis').value,color:document.getElementById('fColor').value,tipoVeh:document.getElementById('fTipoVeh').value,items,subtotal:sub,itbis,aplicaItbis:aI,dcto:dc,total:sub+itbis-dc,estatus:document.getElementById('fEstatus').value,obs:document.getElementById('fObs').value};if(editId.f){obj.id=editId.f;DB.facturas[DB.facturas.findIndex(x=>x.id===editId.f)]=obj;toast('Factura actualizada ✓');logBit('FACTURA','Factura editada',`#${obj.id} — Estatus: ${obj.estatus}`);}else{obj.id=DB.nxt.f++;DB.facturas.push(obj);toast('Factura guardada ✓');logBit('FACTURA','Nueva factura',`#${obj.id} — ${DB.clientes.find(c=>c.id===obj.clienteId)?.nombre||'-'} — ${fmt(obj.total)}`);}closeModal('factModal');renderFact();return obj.id;}
+function saveFact(){const items=[];let sub=0;document.querySelectorAll('#factItems tr').forEach(tr=>{const i=tr.querySelectorAll('input');const p=(+i[1].value||1)*(+i[2].value||0);items.push({desc:i[0].value,ud:+i[1].value,precio:+i[2].value});sub+=p;});const aI=document.getElementById('itbisToggle').checked;const itbis=aI?Math.round(sub*0.18):0;const dc=+document.getElementById('fDcto').value||0;const obj={fecha:document.getElementById('fFecha').value,clienteId:+document.getElementById('fCliente').value,vehiculo:document.getElementById('fVehiculo').options[document.getElementById('fVehiculo').selectedIndex]?.text||'N/A',chasis:document.getElementById('fChasis').value,color:document.getElementById('fColor').value,tipoVeh:document.getElementById('fTipoVeh').value,items,subtotal:sub,itbis,aplicaItbis:aI,dcto:dc,total:sub+itbis-dc,estatus:document.getElementById(`fEstatus`).value,obs:document.getElementById(`fObs`).value,cuentaBancoId:document.getElementById(`fCuentaBanco`)?.value||``};if(editId.f){obj.id=editId.f;DB.facturas[DB.facturas.findIndex(x=>x.id===editId.f)]=obj;toast('Factura actualizada ✓');logBit('FACTURA','Factura editada',`#${obj.id} — Estatus: ${obj.estatus}`);}else{obj.id=DB.nxt.f++;DB.facturas.push(obj);toast('Factura guardada ✓');logBit('FACTURA','Nueva factura',`#${obj.id} — ${DB.clientes.find(c=>c.id===obj.clienteId)?.nombre||'-'} — ${fmt(obj.total)}`);}closeModal('factModal');renderFact();return obj.id;}
 function saveAndPrint(){const id=saveFact();setTimeout(()=>viewInv(id),200);}
 function delFact(id){confirm2('¿Eliminar factura?',function(ok){if(!ok)return;DB.facturas=DB.facturas.filter(x=>x.id!==id);renderFact();toast('Eliminada','info');});}
 function onFCliChange(){const cl=DB.clientes.find(c=>c.id===+document.getElementById('fCliente').value);if(cl){document.getElementById('fTel').value=cl.tel1||'';if(cl.rnc){document.getElementById('itbisToggle').checked=true;updateItbisLabel();calcTotals();}}}
 function onFVehChange(){const v=DB.vehiculos.find(x=>x.id===+document.getElementById('fVehiculo').value);if(v){document.getElementById('fChasis').value=v.chasis;document.getElementById('fColor').value=v.color;}}
 function genFact(vId){showPage('facturacion');setTimeout(()=>openFactModal(null,DB.vehiculos.find(x=>x.id===vId)),200);}
 function viewInv(id){const f=DB.facturas.find(x=>x.id===id);const cl=DB.clientes.find(c=>c.id===f.clienteId);const rows=f.items.map(i=>`<tr><td>${i.desc}</td><td style="text-align:center">${i.ud}</td><td style="text-align:right">RD$ ${Number(i.precio).toLocaleString('es-DO')}</td><td style="text-align:right">RD$ ${Number(i.ud*i.precio).toLocaleString('es-DO')}</td></tr>`).join('');const itR=f.aplicaItbis?`<div class="inv-tr" style="color:#16a34a;"><span>ITBIS 18%:</span><span>RD$ ${Number(f.itbis).toLocaleString('es-DO')}</span></div>`:`<div class="inv-tr" style="color:#9ca3af;font-size:.76rem;"><span>ITBIS:</span><span>No aplica</span></div>`;document.getElementById('printContent').innerHTML=`<div class="inv-preview"><div class="inv-header"><div class="inv-logo">${DB.config&&DB.config.logo?'<img src="'+DB.config.logo+'" style="max-height:54px;max-width:150px;object-fit:contain;">'  :'<div style="font-family:Rajdhani,sans-serif;font-size:1.3rem;font-weight:900;color:#1a3a5c;letter-spacing:2px">ROGASEV</div>'}</div><div class="inv-co"><h3>ROGASEV Multiservice</h3><p>Carretera la Penda, tramo La Vega - Santiago</p><p>detrás del peaje. Tel.: 809-854-3148</p><p><strong>FACTURA # ${String(f.id).padStart(4,'0')}</strong></p></div></div><div class="inv-info"><div class="inv-field"><label>Cliente</label><p>${cl?.nombre||'-'}</p></div><div class="inv-field"><label>RNC</label><p>${cl?.rnc||'Consumidor Final'}</p></div><div class="inv-field"><label>Vehículo</label><p>${f.vehiculo}</p></div><div class="inv-field"><label>Chasis</label><p>${f.chasis||'-'}</p></div><div class="inv-field"><label>Color Pintura</label><p>${f.color||'-'}</p></div><div class="inv-field"><label>Fecha</label><p>${fmtD(f.fecha)}</p></div></div><table class="inv-parts"><thead><tr><th>Descripción</th><th>UD</th><th>Precio Unit.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table><div class="inv-totals"><div class="inv-tr"><span>Sub-Total:</span><span>RD$ ${Number(f.subtotal).toLocaleString('es-DO')}</span></div>${itR}<div class="inv-tr"><span>Descuento:</span><span>RD$ ${Number(f.dcto).toLocaleString('es-DO')}</span></div><div class="inv-tr grand"><span>TOTAL GENERAL:</span><span>RD$ ${Number(f.total).toLocaleString('es-DO')}</span></div></div>${f.obs?`<div style="margin-top:14px;padding:10px;background:#f8f9fa;border-radius:6px;font-size:.79rem;"><strong>Observaciones:</strong> ${f.obs}</div>`:''}<div class="inv-sigs"><div class="inv-sig"><div class="inv-sig-line">RESPONSABLE</div></div><div class="inv-sig"><div class="inv-sig-line">CLIENTE</div></div></div></div>`;openModal('printModal');}
-function renderClients(s=''){let d=DB.clientes;if(s)d=d.filter(c=>(c.nombre+c.rnc+c.ciudad).toLowerCase().includes(s.toLowerCase()));document.getElementById('clientTable').innerHTML=d.map(c=>{const t=DB.vehiculos.filter(v=>v.clienteId===c.id).length;const cx=DB.vehiculos.filter(v=>v.clienteId===c.id).reduce((a,v)=>a+(v.monto-(v.montoPag||0)),0);return`<tr><td>${c.id}</td><td class="fw-600">${c.nombre}</td><td>${c.rnc||'-'}</td><td>${c.ciudad}</td><td>${c.tel1}</td><td class="text-center">${t}</td><td class="fw-600 ${cx>0?'text-danger':'text-success'}">${cx>0?fmt(cx):'—'}</td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openClientModal(${c.id})">✏️</button><button class="btn-icon del" onclick="delClient(${c.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="8" class="text-center" style="padding:24px;color:var(--text2);">Sin clientes</td></tr>';}
-function openClientModal(id=null){editId.c=id;document.getElementById('clientModalTitle').textContent=id?'Editar Cliente':'Nuevo Cliente';if(id){const c=DB.clientes.find(x=>x.id===id);document.getElementById('cNombre').value=c.nombre;document.getElementById('cRnc').value=c.rnc;document.getElementById('cDir').value=c.dir;document.getElementById('cCiudad').value=c.ciudad;document.getElementById('cTel1').value=c.tel1;document.getElementById('cTel2').value=c.tel2;}else{['cNombre','cRnc','cDir','cTel1','cTel2'].forEach(i=>document.getElementById(i).value='');document.getElementById('cCiudad').value='SANTIAGO';}openModal('clientModal');}
-function saveClient(){const n=document.getElementById('cNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),rnc:document.getElementById('cRnc').value,dir:document.getElementById('cDir').value,ciudad:document.getElementById('cCiudad').value.toUpperCase(),tel1:document.getElementById('cTel1').value,tel2:document.getElementById('cTel2').value};if(editId.c){obj.id=editId.c;DB.clientes[DB.clientes.findIndex(x=>x.id===editId.c)]=obj;toast('Cliente actualizado ✓');}else{obj.id=DB.nxt.c++;DB.clientes.push(obj);toast('Cliente guardado ✓');}closeModal('clientModal');renderClients();}
+function renderClients(s=''){let d=DB.clientes;if(s)d=d.filter(c=>(c.nombre+(c.rnc||'')+c.ciudad).toLowerCase().includes(s.toLowerCase()));document.getElementById('clientTable').innerHTML=d.map(c=>{const t=DB.vehiculos.filter(v=>v.clienteId===c.id).length;const cx=DB.vehiculos.filter(v=>v.clienteId===c.id).reduce((a,v)=>a+(v.monto-(v.montoPag||0)),0);return`<tr><td>${c.id}</td><td class="fw-600">${c.nombre}</td><td><span class="badge badge-secondary" style="font-size:.7rem;">${c.tipoDoc||'RNC'}</span></td><td>${c.rnc||'-'}</td><td>${c.ciudad}</td><td>${c.tel1}</td><td class="text-center">${t}</td><td class="fw-600 ${cx>0?'text-danger':'text-success'}">${cx>0?fmt(cx):'—'}</td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openClientModal(${c.id})">✏️</button><button class="btn-icon del" onclick="delClient(${c.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="9" class="text-center" style="padding:24px;color:var(--text2);">Sin clientes</td></tr>';}
+function openClientModal(id=null){editId.c=id;document.getElementById('clientModalTitle').textContent=id?'Editar Cliente':'Nuevo Cliente';if(id){const c=DB.clientes.find(x=>x.id===id);document.getElementById('cNombre').value=c.nombre;document.getElementById('cTipoDoc').value=c.tipoDoc||'RNC';document.getElementById('cRnc').value=c.rnc;document.getElementById('cDir').value=c.dir;document.getElementById('cCiudad').value=c.ciudad;document.getElementById('cTel1').value=c.tel1;document.getElementById('cTel2').value=c.tel2;cTipoDocChange();}else{['cNombre','cRnc','cDir','cTel1','cTel2'].forEach(i=>document.getElementById(i).value='');document.getElementById('cCiudad').value='SANTIAGO';document.getElementById('cTipoDoc').value='RNC';cTipoDocChange();}openModal('clientModal');}
+function cTipoDocChange(){const t=document.getElementById('cTipoDoc').value;const lbl=document.getElementById('cRncLabel');const inp=document.getElementById('cRnc');if(t==='RNC'){lbl.textContent='RNC (000-000000-0)';inp.placeholder='000-000000-0';}else{lbl.textContent='Cédula (000-0000000-0)';inp.placeholder='000-0000000-0';}inp.value='';}
+function cFmtDoc(){const t=document.getElementById('cTipoDoc').value;let v=document.getElementById('cRnc').value.replace(/[^0-9]/g,'');if(t==='RNC'){if(v.length>3)v=v.slice(0,3)+'-'+v.slice(3);if(v.length>10)v=v.slice(0,10)+'-'+v.slice(10,11);}else{if(v.length>3)v=v.slice(0,3)+'-'+v.slice(3);if(v.length>11)v=v.slice(0,11)+'-'+v.slice(11,12);}document.getElementById('cRnc').value=v.slice(0,13);}
+function saveClient(){const n=document.getElementById('cNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),tipoDoc:document.getElementById('cTipoDoc').value,rnc:document.getElementById('cRnc').value,dir:document.getElementById('cDir').value,ciudad:document.getElementById('cCiudad').value.toUpperCase(),tel1:document.getElementById('cTel1').value,tel2:document.getElementById('cTel2').value};if(editId.c){obj.id=editId.c;DB.clientes[DB.clientes.findIndex(x=>x.id===editId.c)]=obj;toast('Cliente actualizado ✓');}else{obj.id=DB.nxt.c++;DB.clientes.push(obj);toast('Cliente guardado ✓');}closeModal('clientModal');renderClients();}
 function delClient(id){confirm2('¿Eliminar cliente?',function(ok){if(!ok)return;DB.clientes=DB.clientes.filter(x=>x.id!==id);renderClients();toast('Eliminado','info');});}
-function renderEmp(s=''){let d=DB.empleados;if(s)d=d.filter(e=>(e.nombre+e.cargo).toLowerCase().includes(s.toLowerCase()));const ajPT=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>!aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const ajPaT=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const fiT=DB.empleados.filter(e=>e.tipo==='FIJO').reduce((a,e)=>a+e.tarifa,0);document.getElementById('empStats').innerHTML=`<div class="stat-card blue"><div class="stat-icon">👷</div><div class="stat-value">${DB.empleados.length}</div><div class="stat-label">Total Empleados</div></div><div class="stat-card red"><div class="stat-icon">🔧</div><div class="stat-value">${DB.empleados.filter(e=>e.tipo==='AJUSTE').length}</div><div class="stat-label">Por Ajuste</div></div><div class="stat-card purple"><div class="stat-icon">💼</div><div class="stat-value">${fmt(fiT)}</div><div class="stat-label">Salarios Fijos/Mes</div></div><div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${fmt(ajPT)}</div><div class="stat-label">Ajustes Pendientes</div></div><div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${fmt(ajPaT)}</div><div class="stat-label">Ajustes Pagados</div></div>`;document.getElementById('empTable').innerHTML=d.map(e=>{const aP=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>aj.empId===e.id&&!aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const aPa=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>aj.empId===e.id&&aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const tB=e.tipo==='FIJO'?'<span class="badge badge-secondary">💼 FIJO</span>':'<span class="badge badge-primary">🔧 AJUSTE</span>';return`<tr><td>${e.id}</td><td class="fw-600">${e.nombre}</td><td><span class="badge badge-info">${e.cargo}</span></td><td>${tB}</td><td>${e.tipo==='FIJO'?fmt(e.tarifa)+' / mes':'Registro manual'}</td><td>${e.tipo==='AJUSTE'?`<span class="fw-600 text-warning">${fmt(aP)}</span> pendiente<br><small style="color:var(--text2);">${fmt(aPa)} pagado</small>`:'—'}</td><td class="fw-600 ${(e.tipo==='FIJO'?e.tarifa:aP)>0?'text-warning':'text-success'}">${fmt(e.tipo==='FIJO'?e.tarifa:aP)}</td><td><span class="badge badge-success">${e.estado}</span></td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openEmpModal(${e.id})">✏️</button><button class="btn-icon del" onclick="delEmp(${e.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="9" class="text-center" style="padding:24px;color:var(--text2);">Sin empleados</td></tr>';}
+function renderEmp(s=''){let d=DB.empleados;if(s)d=d.filter(e=>(e.nombre+e.cargo).toLowerCase().includes(s.toLowerCase()));const ajPT=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>!aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const ajPaT=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const fiT=DB.empleados.filter(e=>e.tipo==='FIJO').reduce((a,e)=>a+e.tarifa,0);document.getElementById('empStats').innerHTML=`<div class="stat-card blue"><div class="stat-icon">👷</div><div class="stat-value">${DB.empleados.length}</div><div class="stat-label">Total Empleados</div></div><div class="stat-card red"><div class="stat-icon">🔧</div><div class="stat-value">${DB.empleados.filter(e=>e.tipo==='AJUSTE').length}</div><div class="stat-label">Por Ajuste</div></div><div class="stat-card purple"><div class="stat-icon">💼</div><div class="stat-value">${fmt(fiT)}</div><div class="stat-label">Salarios Fijos/Mes</div></div><div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${fmt(ajPT)}</div><div class="stat-label">Ajustes Pendientes</div></div><div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${fmt(ajPaT)}</div><div class="stat-label">Ajustes Pagados</div></div>`;
+document.getElementById('empTable').innerHTML=d.map(e=>{const tB=e.tipo==='FIJO'?'<span class="badge badge-secondary">💼 FIJO</span>':'<span class="badge badge-primary">🔧 AJUSTE</span>';return`<tr><td>${e.id}</td><td class="fw-600">${e.nombre}</td><td><span class="badge badge-info">${e.cargo}</span></td><td>${tB}</td><td>${e.tipo==='FIJO'?fmt(e.tarifa)+' / mes':'Por orden'}</td><td><span class="badge badge-success">${e.estado}</span></td><td><div class="flex gap-2"><button class="btn btn-sm btn-warning" onclick="openEmpPagos(${e.id})">💰 Pagos</button><button class="btn-icon edit" onclick="openEmpModal(${e.id})">✏️</button><button class="btn-icon del" onclick="delEmp(${e.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin empleados</td></tr>';}
 function onEmpTipoChange(){const t=document.getElementById('eTipo').value;document.getElementById('eTarifaLabel').textContent=t==='FIJO'?'Salario Mensual (RD$)':'Tarifa Referencial (RD$)';document.getElementById('empTipoInfo').innerHTML=t==='FIJO'?'💡 <strong>Salario Fijo:</strong> El empleado cobra un monto fijo mensual.':'💡 <strong>Por Ajuste:</strong> El admin registra manualmente el monto en cada orden. Gestione pagos con el botón 💵 en Órdenes de Trabajo.';}
 function openEmpModal(id=null){editId.e=id;document.getElementById('empModalTitle').textContent=id?'Editar Empleado':'Nuevo Empleado';if(id){const e=DB.empleados.find(x=>x.id===id);document.getElementById('eNombre').value=e.nombre;document.getElementById('eCargo').value=e.cargo;document.getElementById('eTipo').value=e.tipo;document.getElementById('eTarifa').value=e.tarifa;document.getElementById('eTel').value=e.tel;document.getElementById('eFecha').value=e.fecha;onEmpTipoChange();}else{['eNombre','eTel'].forEach(i=>document.getElementById(i).value='');document.getElementById('eTarifa').value='';document.getElementById('eCargo').value='PINTOR';document.getElementById('eTipo').value='AJUSTE';onEmpTipoChange();}openModal('empModal');}
 function saveEmp(){const n=document.getElementById('eNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),cargo:document.getElementById('eCargo').value,tipo:document.getElementById('eTipo').value,tarifa:+document.getElementById('eTarifa').value||0,tel:document.getElementById('eTel').value,fecha:document.getElementById('eFecha').value,estado:'ACTIVO'};if(editId.e){obj.id=editId.e;DB.empleados[DB.empleados.findIndex(x=>x.id===editId.e)]=obj;toast('Empleado actualizado ✓');}else{obj.id=DB.nxt.e++;DB.empleados.push(obj);toast('Empleado guardado ✓');}closeModal('empModal');renderEmp();}
+function openEmpPagos(empId){
+  const e=DB.empleados.find(x=>x.id===empId);
+  if(!e) return;
+  document.getElementById('empPagosTitle').textContent=`💰 Pagos — ${e.nombre}`;
+  const ajustes=DB.vehiculos.flatMap(v=>v.ajustes.filter(aj=>aj.empId===empId).map(aj=>({...aj,ordenId:v.id,vehiculo:v.vehiculo})));
+  const pend=ajustes.filter(aj=>!aj.pagado).reduce((a,aj)=>a+aj.monto,0);
+  const pagado=ajustes.filter(aj=>aj.pagado).reduce((a,aj)=>a+aj.monto,0);
+  const bancoOpts='<option value="">— Seleccionar cuenta —</option>'+(DB.bancos||[]).map(b=>`<option value="${b.id}">${b.banco} — ${b.numCuenta}</option>`).join('');
+  document.getElementById('empPagosBody').innerHTML=`
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+      <div class="stat-card orange" style="padding:12px;"><div class="stat-value" style="font-size:1.1rem;">${fmt(pend)}</div><div class="stat-label">Pendiente</div></div>
+      <div class="stat-card green" style="padding:12px;"><div class="stat-value" style="font-size:1.1rem;">${fmt(pagado)}</div><div class="stat-label">Pagado</div></div>
+      <div class="stat-card blue" style="padding:12px;"><div class="stat-value" style="font-size:1.1rem;">${fmt(pend+pagado)}</div><div class="stat-label">Total</div></div>
+    </div>
+    ${ajustes.length?`
+    <div class="form-row" style="margin-bottom:10px;"><label class="form-label">Cuenta bancaria para pago</label><select id="empPagoCuenta" class="form-control">${bancoOpts}</select></div>
+    <table style="width:100%;border-collapse:collapse;font-size:.83rem;margin-bottom:12px;">
+      <thead><tr style="background:#f8fafc;">
+        <th style="padding:8px 10px;border-bottom:1px solid var(--border);">Orden / Vehículo</th>
+        <th style="padding:8px 10px;border-bottom:1px solid var(--border);">Tipo</th>
+        <th style="padding:8px 10px;border-bottom:1px solid var(--border);">Monto</th>
+        <th style="padding:8px 10px;border-bottom:1px solid var(--border);">Estado</th>
+        <th style="padding:8px 10px;border-bottom:1px solid var(--border);"></th>
+      </tr></thead>
+      <tbody>
+        ${ajustes.map((aj,i)=>`<tr>
+          <td style="padding:7px 10px;font-size:.81rem;">${aj.vehiculo}</td>
+          <td style="padding:7px 10px;">${aj.tipoTrabajo||'—'}</td>
+          <td style="padding:7px 10px;font-weight:600;">${fmt(aj.monto)}</td>
+          <td style="padding:7px 10px;">${aj.pagado?'<span class="badge badge-success">✅ Pagado</span>':'<span class="badge badge-warning">⏳ Pendiente</span>'}</td>
+          <td style="padding:7px 10px;">${!aj.pagado?`<button class="btn btn-sm btn-success" onclick="pagarAjusteEmp(${aj.ordenId},${aj.idxOrig||i},${empId})">✓ Pagar</button>`:''}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="printReciboEmpDirect(${empId})">🖨️ Imprimir Recibo</button>
+      ${pend>0?`<button class="btn btn-success" onclick="pagarTodoEmp(${empId})">✅ Pagar Todo Pendiente</button>`:''}
+    </div>`:'<p style="text-align:center;color:var(--text2);padding:20px;">No hay ajustes registrados para este empleado</p>'}`;
+  // Guardar índices originales para poder marcar pagado
+  ajustes.forEach((aj,i)=>{
+    const v=DB.vehiculos.find(x=>x.id===aj.ordenId);
+    if(v){const idx=v.ajustes.findIndex(a=>a===DB.vehiculos.find(vv=>vv.id===aj.ordenId)?.ajustes.find(aa=>aa.empId===empId&&aa.monto===aj.monto&&aa.tipoTrabajo===aj.tipoTrabajo));aj.idxOrig=v.ajustes.indexOf(DB.vehiculos.find(vv=>vv.id===aj.ordenId)?.ajustes.filter(aa=>aa.empId===empId)[i]);}
+  });
+  openModal('empPagosModal');
+}
+
+function pagarAjusteEmp(vId,idx,empId){
+  const v=DB.vehiculos.find(x=>x.id===vId);
+  if(!v||!v.ajustes[idx]) return;
+  v.ajustes[idx].pagado=true;
+  const cuentaId=document.getElementById('empPagoCuenta')?.value;
+  const banco=getBancoLabel(cuentaId);
+  DB.caja.push({id:DB.nxt.caj++,fecha:new Date().toISOString().split('T')[0],concepto:`Pago ajuste — ${v.vehiculo}`,mover:'SALIDA',monto:v.ajustes[idx].monto,cuenta:cuentaId,desc:`Pago empleado ${DB.empleados.find(e=>e.id===empId)?.nombre||''}`,tipo:'EFECTIVO',moneda:'PESOS',estatus:'PAGADO',persona:DB.empleados.find(e=>e.id===empId)?.nombre||''});
+  logBit('AJUSTE','Ajuste pagado',`Orden #${vId} — Empleado: ${DB.empleados.find(e=>e.id===empId)?.nombre||''} — ${fmt(v.ajustes[idx].monto)}`);
+  toast('Ajuste pagado ✓');
+  openEmpPagos(empId);
+  renderEmp();
+}
+
+function pagarTodoEmp(empId){
+  const cuentaId=document.getElementById('empPagoCuenta')?.value;
+  DB.vehiculos.forEach(v=>{
+    v.ajustes.filter(aj=>aj.empId===empId&&!aj.pagado).forEach(aj=>{
+      aj.pagado=true;
+      DB.caja.push({id:DB.nxt.caj++,fecha:new Date().toISOString().split('T')[0],concepto:`Pago ajuste — ${v.vehiculo}`,mover:'SALIDA',monto:aj.monto,cuenta:cuentaId,desc:`Pago empleado ${DB.empleados.find(e=>e.id===empId)?.nombre||''}`,tipo:'EFECTIVO',moneda:'PESOS',estatus:'PAGADO',persona:DB.empleados.find(e=>e.id===empId)?.nombre||''});
+    });
+  });
+  logBit('AJUSTE','Pago total empleado',DB.empleados.find(e=>e.id===empId)?.nombre||'');
+  toast('Todos los ajustes pagados ✓');
+  openEmpPagos(empId);
+  renderEmp();
+}
+
+function printReciboEmpDirect(empId){
+  const e=DB.empleados.find(x=>x.id===empId);
+  if(!e) return;
+  const ajustes=DB.vehiculos.flatMap(v=>v.ajustes.filter(aj=>aj.empId===empId).map(aj=>({...aj,vehiculo:v.vehiculo,ordenId:v.id})));
+  const tot=ajustes.reduce((a,aj)=>a+aj.monto,0);
+  const pag=ajustes.filter(aj=>aj.pagado).reduce((a,aj)=>a+aj.monto,0);
+  const pend=tot-pag;
+  const cfg=DB.config||{nombre:'ROGASEV Multiservice',dir:'Carretera la Penda, La Vega–Santiago',tel:'809-854-3148'};
+  const fecha=new Date().toLocaleDateString('es-DO',{year:'numeric',month:'long',day:'numeric'});
+  const bloqueHTML=(titulo,esEmp)=>`<div style="background:#fff;padding:24px 28px;max-width:680px;margin:0 auto;border:1px solid #ddd;border-radius:4px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:2px solid #c8102e;margin-bottom:12px;">
+      <div><div style="font-size:1.1rem;font-weight:900;color:#c8102e;">${cfg.nombre}</div><div style="font-size:.75rem;color:#666;">${cfg.dir}</div><div style="font-size:.75rem;color:#666;">Tel: ${cfg.tel}</div></div>
+      <div style="text-align:right;"><div style="font-size:.95rem;font-weight:700;color:#1a3a5c;text-transform:uppercase;">${titulo}</div><div style="font-size:.75rem;color:#666;">Fecha: ${fecha}</div></div>
+    </div>
+    <div style="background:#f0f4ff;border-left:3px solid #1a4fa0;padding:8px 12px;font-size:.82rem;margin-bottom:14px;border-radius:0 4px 4px 0;"><strong>Empleado:</strong> ${e.nombre} &nbsp;&nbsp; <strong>Cargo:</strong> ${e.cargo} &nbsp;&nbsp; <strong>Tipo:</strong> ${e.tipo}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem;margin-bottom:12px;">
+      <thead><tr style="background:#1a3a5c;"><th style="color:#fff;padding:6px 9px;text-align:left;">Vehículo</th><th style="color:#fff;padding:6px 9px;text-align:left;">Tipo Trabajo</th><th style="color:#fff;padding:6px 9px;text-align:right;">Monto</th><th style="color:#fff;padding:6px 9px;text-align:center;">Estado</th></tr></thead>
+      <tbody>${ajustes.map(aj=>`<tr><td style="padding:5px 9px;border-bottom:1px solid #eee;">${aj.vehiculo}</td><td style="padding:5px 9px;border-bottom:1px solid #eee;">${aj.tipoTrabajo||'—'}</td><td style="padding:5px 9px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">RD$ ${Number(aj.monto).toLocaleString('es-DO')}</td><td style="padding:5px 9px;border-bottom:1px solid #eee;text-align:center;">${aj.pagado?'✅':'⏳'}</td></tr>`).join('')}</tbody>
+    </table>
+    <div style="margin-left:auto;width:240px;">
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:.83rem;border-bottom:1px solid #eee;"><span>Total:</span><span style="font-weight:600;">RD$ ${Number(tot).toLocaleString('es-DO')}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:.83rem;border-bottom:1px solid #eee;color:#16a34a;"><span>✅ Pagado:</span><span style="font-weight:600;">RD$ ${Number(pag).toLocaleString('es-DO')}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:.95rem;font-weight:700;color:#c8102e;"><span>⏳ Pendiente:</span><span>RD$ ${Number(pend).toLocaleString('es-DO')}</span></div>
+    </div>
+    <div style="display:flex;justify-content:space-around;margin-top:26px;">
+      <div style="text-align:center;width:180px;"><div style="border-top:1px solid #999;padding-top:5px;font-size:.72rem;color:#555;">FIRMA EMPLEADO</div></div>
+      <div style="text-align:center;width:180px;"><div style="border-top:1px solid #999;padding-top:5px;font-size:.72rem;color:#555;">${esEmp?'RECIBÍ CONFORME':'ADMINISTRADOR'}</div></div>
+    </div>
+    <div style="text-align:center;margin-top:10px;font-size:.68rem;color:#bbb;letter-spacing:2px;">${esEmp?'📋 COPIA EMPLEADO':'📋 COPIA ADMINISTRADOR'}</div>
+  </div>`;
+  const win=window.open('','_blank','width=760,height:650');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo — ${e.nombre}</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;background:#f0f0f0;padding:14px;}.pg-break{border:none;border-top:2px dashed #ccc;margin:18px auto;max-width:680px;position:relative;}.pg-break::after{content:'✂ Cortar';position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#f0f0f0;padding:0 8px;font-size:.7rem;color:#aaa;}@media print{body{background:#fff;padding:0;}.pg-break{page-break-after:always;border:none;}.pg-break::after{display:none;}}</style></head><body>${bloqueHTML('COMPROBANTE DE PAGO',false)}<hr class="pg-break">${bloqueHTML('RECIBO DE PAGO',true)}<div style="text-align:center;margin-top:14px;"><button onclick="window.print()" style="background:#c8102e;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer;">🖨️ IMPRIMIR</button></div></body></html>`);
+  win.document.close();
+}
+function renderSup(s=''){let d=DB.suplidores;if(s)d=d.filter(x=>(x.nombre+(x.ncf||'')).toLowerCase().includes(s.toLowerCase()));document.getElementById('supTable').innerHTML=d.map(x=>{return`<tr><td>${x.id}</td><td class="fw-600">${x.nombre}</td><td><span class="badge badge-info" style="font-size:.7rem;">${x.tipoDoc||'RNC'}</span></td><td>${x.ncf||'-'}</td><td>${x.ciudad||'-'}</td><td>${x.tel1||'-'}</td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openSupModal(${x.id})">✏️</button><button class="btn-icon del" onclick="delSup(${x.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin suplidores</td></tr>';}
 function delEmp(id){confirm2('¿Eliminar empleado?',function(ok){if(!ok)return;DB.empleados=DB.empleados.filter(x=>x.id!==id);renderEmp();toast('Eliminado','info');});}
-function renderSup(s=''){let d=DB.suplidores;if(s)d=d.filter(x=>(x.nombre+x.ncf).toLowerCase().includes(s.toLowerCase()));document.getElementById('supTable').innerHTML=d.map(x=>{const ms=DB.caja.filter(c=>c.persona===x.nombre&&c.mover==='ENTRADA');const t=ms.reduce((a,m)=>a+m.monto,0);const p=ms.filter(m=>m.estatus==='POR PAGAR').reduce((a,m)=>a+m.monto,0);return`<tr><td>${x.id}</td><td class="fw-600">${x.nombre}</td><td>${x.ncf||'-'}</td><td>${x.ciudad||'-'}</td><td>${x.tel1||'-'}</td><td>${fmt(t)}</td><td class="fw-600 ${p>0?'text-danger':''}">${p>0?fmt(p):'—'}</td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openSupModal(${x.id})">✏️</button><button class="btn-icon del" onclick="delSup(${x.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="8" class="text-center" style="padding:24px;color:var(--text2);">Sin suplidores</td></tr>';}
-function openSupModal(id=null){editId.s=id;document.getElementById('supModalTitle').textContent=id?'Editar Suplidor':'Nuevo Suplidor';if(id){const s=DB.suplidores.find(x=>x.id===id);document.getElementById('sNombre').value=s.nombre;document.getElementById('sNcf').value=s.ncf;document.getElementById('sDir').value=s.dir;document.getElementById('sCiudad').value=s.ciudad;document.getElementById('sTel1').value=s.tel1;document.getElementById('sTel2').value=s.tel2;}else{['sNombre','sNcf','sDir','sCiudad','sTel1','sTel2'].forEach(i=>document.getElementById(i).value='');}openModal('supModal');}
-function saveSup(){const n=document.getElementById('sNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),ncf:document.getElementById('sNcf').value,dir:document.getElementById('sDir').value,ciudad:document.getElementById('sCiudad').value.toUpperCase(),tel1:document.getElementById('sTel1').value,tel2:document.getElementById('sTel2').value};if(editId.s){obj.id=editId.s;DB.suplidores[DB.suplidores.findIndex(x=>x.id===editId.s)]=obj;toast('Suplidor actualizado ✓');}else{obj.id=DB.nxt.s++;DB.suplidores.push(obj);toast('Suplidor guardado ✓');}closeModal('supModal');renderSup();}
+function openSupModal(id=null){editId.s=id;document.getElementById('supModalTitle').textContent=id?'Editar Suplidor':'Nuevo Suplidor';if(id){const s=DB.suplidores.find(x=>x.id===id);document.getElementById('sNombre').value=s.nombre;document.getElementById('sTipoDoc').value=s.tipoDoc||'RNC';document.getElementById('sNcf').value=s.ncf;document.getElementById('sDir').value=s.dir;document.getElementById('sCiudad').value=s.ciudad;document.getElementById('sTel1').value=s.tel1;document.getElementById('sTel2').value=s.tel2;sTipoDocChange();}else{['sNombre','sNcf','sDir','sCiudad','sTel1','sTel2'].forEach(i=>document.getElementById(i).value='');document.getElementById('sTipoDoc').value='RNC';sTipoDocChange();}openModal('supModal');}
+function sTipoDocChange(){const t=document.getElementById('sTipoDoc').value;const lbl=document.getElementById('sRncLabel');const inp=document.getElementById('sNcf');if(t==='RNC'){lbl.textContent='RNC (000-000000-0)';inp.placeholder='000-000000-0';}else{lbl.textContent='Cédula (000-0000000-0)';inp.placeholder='000-0000000-0';}inp.value='';}
+function sFmtDoc(){const t=document.getElementById('sTipoDoc').value;let v=document.getElementById('sNcf').value.replace(/[^0-9]/g,'');if(t==='RNC'){if(v.length>3)v=v.slice(0,3)+'-'+v.slice(3);if(v.length>10)v=v.slice(0,10)+'-'+v.slice(10,11);}else{if(v.length>3)v=v.slice(0,3)+'-'+v.slice(3);if(v.length>11)v=v.slice(0,11)+'-'+v.slice(11,12);}document.getElementById('sNcf').value=v.slice(0,13);}
+function saveSup(){const n=document.getElementById('sNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),tipoDoc:document.getElementById('sTipoDoc').value,ncf:document.getElementById('sNcf').value,dir:document.getElementById('sDir').value,ciudad:document.getElementById('sCiudad').value.toUpperCase(),tel1:document.getElementById('sTel1').value,tel2:document.getElementById('sTel2').value};if(editId.s){obj.id=editId.s;DB.suplidores[DB.suplidores.findIndex(x=>x.id===editId.s)]=obj;toast('Suplidor actualizado ✓');}else{obj.id=DB.nxt.s++;DB.suplidores.push(obj);toast('Suplidor guardado ✓');}closeModal('supModal');renderSup();}
 function delSup(id){confirm2('¿Eliminar suplidor?',function(ok){if(!ok)return;DB.suplidores=DB.suplidores.filter(x=>x.id!==id);renderSup();toast('Eliminado','info');});}
 function renderCaja(f='',s=''){let d=DB.caja;if(f)d=d.filter(c=>c.mover===f);if(s)d=d.filter(c=>(c.desc+c.persona+c.cuenta).toLowerCase().includes(s.toLowerCase()));const en=DB.caja.filter(c=>c.mover==='ENTRADA').reduce((a,c)=>a+c.monto,0);const sa=DB.caja.filter(c=>c.mover==='SALIDA').reduce((a,c)=>a+c.monto,0);document.getElementById('cajaStats').innerHTML=`<div class="stat-card green"><div class="stat-icon">⬆️</div><div class="stat-value">${fmt(en)}</div><div class="stat-label">Total Entradas</div></div><div class="stat-card red"><div class="stat-icon">⬇️</div><div class="stat-value">${fmt(sa)}</div><div class="stat-label">Total Salidas</div></div><div class="stat-card blue"><div class="stat-icon">💳</div><div class="stat-value">${fmt(en-sa)}</div><div class="stat-label">Balance</div></div><div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${DB.caja.filter(c=>c.estatus==='POR PAGAR').length}</div><div class="stat-label">Por Pagar</div></div>`;const sM={PAGADO:'success','POR PAGAR':'warning',COBRADO:'info','POR COBRAR':'danger','EN TRÁNSITO':'info',ANULADO:'danger',DEPOSITADO:'success'};document.getElementById('cajaTable').innerHTML=d.map(c=>{const mv=c.mover==='ENTRADA'?'<span class="text-success fw-600">⬆️ ENT.</span>':'<span class="text-danger fw-600">⬇️ SAL.</span>';return`<tr><td>${c.id}</td><td>${fmtD(c.fecha)}</td><td style="font-size:.8rem;">${c.tipo}</td><td style="font-size:.76rem;">${c.cuenta}</td><td style="font-size:.82rem;">${c.desc}</td><td>${c.factura||'-'}</td><td>${mv}</td><td>${c.moneda}</td><td class="fw-600 ${c.mover==='ENTRADA'?'text-success':'text-danger'}">${fmt(c.monto)}</td><td><span class="badge badge-${sM[c.estatus]||'info'}">${c.estatus}</span></td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openCajaModal(${c.id})">✏️</button><button class="btn-icon del" onclick="delCaja(${c.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="11" class="text-center" style="padding:24px;color:var(--text2);">Sin movimientos</td></tr>';}
 function openCajaModal(id=null){editId.cj=id;document.getElementById('cajaModalTitle').textContent=id?'Editar Movimiento':'Nuevo Movimiento';document.getElementById('cajFecha').value=new Date().toISOString().split('T')[0];if(id){const c=DB.caja.find(x=>x.id===id);document.getElementById('cajFecha').value=c.fecha;document.getElementById('cajTipo').value=c.tipo;document.getElementById('cajCuenta').value=c.cuenta;document.getElementById('cajMover').value=c.mover;document.getElementById('cajMoneda').value=c.moneda;document.getElementById('cajMonto').value=c.monto;document.getElementById('cajFact').value=c.factura;document.getElementById('cajEst').value=c.estatus;document.getElementById('cajDesc').value=c.desc;document.getElementById('cajPersona').value=c.persona;}else{['cajMonto','cajFact','cajDesc','cajPersona'].forEach(i=>document.getElementById(i).value='');}openModal('cajaModal');}
@@ -1047,11 +1191,12 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
           </div>
           <div class="form-row"><label class="form-label">Fecha Ingreso</label><input type="date" class="form-control" id="rpFecha"></div>
           <div class="form-row"><label class="form-label">Tiempo Estimado</label>
-            <select class="form-control" id="rpTiempo">
+            <select class="form-control" id="rpTiempo" onchange="rpCalcFechaEntrega()">
               <option>1-2 días</option><option>3-5 días</option><option>1 semana</option>
               <option>2 semanas</option><option>1 mes</option><option>A convenir</option>
             </select>
           </div>
+          <div class="form-row"><label class="form-label">Fecha Entrega Est.</label><input type="date" class="form-control" id="rpFechaEntrega" placeholder="Se calcula automáticamente"></div>
         </div>
       </div>
 
@@ -1135,6 +1280,21 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
               <option value="EN PROCESO">EN PROCESO</option>
             </select>
           </div>
+          <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;margin-top:10px;">
+            <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.88rem;margin-bottom:8px;">💳 Pago Inicial</div>
+            <div style="display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
+              <label style="font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="rpPagoTipo" id="rpPagoNinguno" value="ninguno" checked onchange="rpTogglePago()"> Sin pago inicial (pasa a CXC)</label>
+              <label style="font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="rpPagoTipo" id="rpPagoParcial" value="parcial" onchange="rpTogglePago()"> Adelanto parcial</label>
+              <label style="font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="rpPagoTipo" id="rpPagoTotal" value="total" onchange="rpTogglePago()"> Pago total</label>
+            </div>
+            <div id="rpPagoFields" style="display:none;">
+              <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+                <div class="form-row"><label class="form-label">Monto Pago (RD$)</label><input type="number" class="form-control" id="rpPagoMonto" placeholder="0.00"></div>
+                <div class="form-row"><label class="form-label">Forma de Pago</label><select class="form-control" id="rpPagoForma"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option></select></div>
+              </div>
+              <div class="form-row"><label class="form-label">Cuenta Bancaria (destino del dinero)</label><select id="rpCuentaBanco" class="form-control"><option value="">— Seleccionar cuenta —</option></select></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1167,12 +1327,16 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
 
 <!-- MODAL MATERIAL -->
 <div class="modal-overlay" id="matModal">
-  <div class="modal">
+  <div class="modal modal-lg">
     <div class="modal-header">
       <span class="modal-title" id="matModalTitle">Nuevo Material</span>
       <button class="modal-close" onclick="closeModal('matModal')">✕</button>
     </div>
     <div class="modal-body">
+      <!-- Orden de Compra (no cierra al guardar) -->
+      <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--info);">
+        💡 Puede agregar varios materiales a la misma orden de compra sin cerrar el modal.
+      </div>
       <div class="form-grid">
         <div class="form-row">
           <label class="form-label">Nombre *</label>
@@ -1180,14 +1344,21 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
         </div>
         <div class="form-row">
           <label class="form-label">Categoría</label>
-          <select id="mCategoria" class="form-control">
-            <option>Pintura</option><option>Desabolladura</option><option>Brillado</option>
-            <option>Lija</option><option>Masilla</option><option>Thinner</option><option>Otro</option>
-          </select>
+          <div style="display:flex;gap:6px;">
+            <select id="mCategoria" class="form-control" style="flex:1;">
+              <option>Pintura</option><option>Desabolladura</option><option>Brillado</option>
+              <option>Lija</option><option>Masilla</option><option>Thinner</option><option>Otro</option>
+            </select>
+            <button class="btn btn-sm btn-outline" onclick="mAddCategoria()" title="Agregar nueva categoría">+</button>
+          </div>
         </div>
         <div class="form-row">
           <label class="form-label">Costo Unitario (RD$)</label>
-          <input type="number" id="mCosto" class="form-control" placeholder="0.00">
+          <input type="number" id="mCosto" class="form-control" placeholder="0.00" oninput="mCalcTotal()">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Cantidad a Comprar</label>
+          <input type="number" id="mCantidad" class="form-control" placeholder="0" oninput="mCalcTotal()">
         </div>
         <div class="form-row">
           <label class="form-label">Stock Actual</label>
@@ -1197,11 +1368,44 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
           <label class="form-label">Suplidor</label>
           <select id="mSuplidor" class="form-control"><option value="">Sin suplidor</option></select>
         </div>
+        <div class="form-row">
+          <label class="form-label">Fecha Compra</label>
+          <input type="date" id="mFecha" class="form-control">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Ref / Factura</label>
+          <input id="mRef" class="form-control" placeholder="N° referencia">
+        </div>
+      </div>
+      <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:8px;">
+        <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.92rem;margin-bottom:8px;">💳 Forma de Pago</div>
+        <div style="display:flex;gap:16px;margin-bottom:10px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="radio" name="mPago" id="mPagoContado" value="contado" checked onchange="mTogglePago()"> Contado</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;"><input type="radio" name="mPago" id="mPagoCredito" value="credito" onchange="mTogglePago()"> Crédito</label>
+        </div>
+        <!-- Cuenta bancaria - solo contado -->
+        <div id="mCuentaFields">
+          <div class="form-row"><label class="form-label">Cuenta Bancaria (desde dónde sale el dinero)</label><select id="mCuentaBanco" class="form-control" style="font-size:.84rem;"><option value="">— Seleccionar cuenta —</option></select></div>
+        </div>
+        <!-- Crédito fields -->
+        <div id="mCreditoFields" style="display:none;">
+          <div class="form-grid">
+            <div class="form-row"><label class="form-label">Fecha Vencimiento</label><input type="date" id="mVence" class="form-control"></div>
+          </div>
+          <div style="font-size:.78rem;color:var(--warning);margin-top:4px;">⚠️ Se creará automáticamente una CXP pendiente.</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:.85rem;"><span>Total a pagar:</span><span class="fw-700 text-primary" id="mTotalCalc">RD$ 0</span></div>
+      </div>
+      <!-- Lista de items agregados en la misma OC -->
+      <div id="mOcListContainer" style="margin-top:12px;display:none;">
+        <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.88rem;margin-bottom:6px;color:var(--text);">📋 Materiales en esta Orden de Compra:</div>
+        <div id="mOcList"></div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('matModal')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveMat()">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('matModal')">Cerrar</button>
+      <button class="btn btn-secondary" onclick="saveMat(true)">+ Agregar otro</button>
+      <button class="btn btn-primary" onclick="saveMat(false)">💾 Guardar y Cerrar</button>
     </div>
   </div>
 </div>
@@ -1231,12 +1435,31 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
           <label class="form-label">Fecha Vencimiento *</label>
           <input type="date" id="cxpVence" class="form-control">
         </div>
+        <div class="form-row">
+          <label class="form-label">Estatus</label>
+          <select id="cxpEstado" class="form-control"><option value="PENDIENTE">PENDIENTE</option><option value="ABONADA">ABONADA</option><option value="PAGADA">PAGADA</option></select>
+        </div>
+        <div class="form-row" id="cxpCuentaRow">
+          <label class="form-label">Cuenta Bancaria (pago)</label>
+          <select id="cxpCuentaBanco" class="form-control"><option value="">— Seleccionar —</option></select>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('cxpModal')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveCXP()">Guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL CUENTA BANCARIA (creado dinámicamente por JS) -->
+
+<!-- MODAL EMPLEADOS PAGOS - separado -->
+<div class="modal-overlay" id="empPagosModal">
+  <div class="modal modal-lg">
+    <div class="modal-header"><span class="modal-title" id="empPagosTitle">💰 Pagos del Empleado</span><button class="modal-close" onclick="closeModal('empPagosModal')">✕</button></div>
+    <div class="modal-body" id="empPagosBody"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('empPagosModal')">Cerrar</button></div>
   </div>
 </div>
 
@@ -1302,85 +1525,6 @@ DB.nxt.cxp = DB.nxt.cxp || 1;
 
 const editId_mat = {m: null, cxp: null};
 
-// ===== MATERIALES =====
-function openMatModal(id=null){
-  editId_mat.m = id;
-  document.getElementById('matModalTitle').textContent = id ? 'Editar Material' : 'Nuevo Material';
-  const sel = document.getElementById('mSuplidor');
-  if(sel) sel.innerHTML = '<option value="">Sin suplidor</option>' + DB.suplidores.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('');
-  ['mNombre','mCosto','mStock','mCantidad','mRef'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
-  const fechaEl=document.getElementById('mFecha');
-  if(fechaEl) fechaEl.value=new Date().toISOString().split('T')[0];
-  const rb=document.getElementById('mPagoContado');
-  if(rb) rb.checked=true;
-  const cf=document.getElementById('mCreditoFields');
-  if(cf) cf.style.display='none';
-  const tc=document.getElementById('mTotalCalc');
-  if(tc) tc.textContent='RD$ 0';
-  if(id){
-    const m=DB.materiales.find(x=>x.id===id);
-    if(m){
-      document.getElementById('mNombre').value=m.nombre||'';
-      document.getElementById('mCategoria').value=m.categoria||'Pintura';
-      document.getElementById('mCosto').value=m.costo||'';
-      document.getElementById('mStock').value=m.stock||'';
-      if(fechaEl) fechaEl.value=m.fecha||new Date().toISOString().split('T')[0];
-    }
-  }
-  openModal('matModal');
-}
-function mTogglePago(){
-  const isCredito=document.getElementById('mPagoCredito')?.checked;
-  const cf=document.getElementById('mCreditoFields');
-  if(cf) cf.style.display=isCredito?'block':'none';
-}
-function mCalcTotal(){
-  const costo=+(document.getElementById('mCosto')?.value)||0;
-  const cant=+(document.getElementById('mCantidad')?.value)||0;
-  const el=document.getElementById('mTotalCalc');
-  if(el) el.textContent=fmt(costo*cant);
-}
-function saveMat(){
-  const n = document.getElementById('mNombre').value.trim();
-  if(!n){toast('Ingrese nombre','error');return;}
-  const costo=+document.getElementById('mCosto').value||0;
-  const cant=+(document.getElementById('mCantidad')?.value)||0;
-  const stockActual=+document.getElementById('mStock').value||0;
-  const isCredito=document.getElementById('mPagoCredito')?.checked;
-  const fecha=document.getElementById('mFecha')?.value||new Date().toISOString().split('T')[0];
-  const obj = {
-    nombre: n.toUpperCase(),
-    categoria: document.getElementById('mCategoria').value,
-    costo, stock: editId_mat.m ? stockActual : stockActual+cant,
-    suplidorId: document.getElementById('mSuplidor').value,
-    fecha, ref: document.getElementById('mRef')?.value.trim()||'',
-    formaPago: isCredito?'CREDITO':'CONTADO',
-  };
-  if(editId_mat.m){
-    obj.id = editId_mat.m;
-    DB.materiales[DB.materiales.findIndex(x=>x.id===editId_mat.m)] = obj;
-    toast('Material actualizado ✓');
-    logBit('ORDEN','Material editado',obj.nombre);
-  } else {
-    obj.id = DB.nxt.mat++;
-    DB.materiales.push(obj);
-    const totalCompra=costo*cant;
-    if(!DB.kardex) DB.kardex=[];
-    DB.kardex.push({fecha,matId:obj.id,matNombre:obj.nombre,tipo:'ENTRADA',concepto:'Compra',modulo:'MATERIALES',entrada:cant,salida:0,stock:obj.stock,ref:obj.ref,formaPago:obj.formaPago});
-    if(!isCredito && totalCompra>0){
-      DB.caja.push({id:DB.nxt.caj++,fecha,concepto:`Compra: ${obj.nombre}`,mover:'SALIDA',monto:totalCompra,ref:obj.ref});
-    }
-    if(isCredito && totalCompra>0){
-      const vence=document.getElementById('mVence')?.value||'';
-      DB.cxp.push({id:DB.nxt.cxp++,suplidor:DB.suplidores.find(s=>s.id==obj.suplidorId)?.nombre||'Sin suplidor',concepto:`Compra: ${obj.nombre} (${cant} unid.)`,monto:totalCompra,vence,estado:'PENDIENTE',ref:obj.ref});
-      toast(`💳 CXP creada: ${fmt(totalCompra)}`,'info');
-    }
-    toast('Material guardado ✓');
-    logBit('ORDEN','Compra material',`${obj.nombre} ×${cant} — ${obj.formaPago} — ${fmt(totalCompra)}`);
-  }
-  closeModal('matModal');
-  renderMateriales();
-}
 function delMat(id){confirm2('¿Eliminar material?',function(ok){if(!ok)return;DB.materiales=DB.materiales.filter(x=>x.id!==id);renderMateriales();toast('Eliminado','info');});}
 function renderMateriales(s=''){
   let d = DB.materiales;
@@ -1399,6 +1543,8 @@ function openCXPModal(id=null){
   document.getElementById('cxpModalTitle').textContent = id ? 'Editar CXP' : 'Nueva Cuenta por Pagar';
   const sel = document.getElementById('cxpSuplidor');
   sel.innerHTML = '<option value="">Seleccionar...</option>' + DB.suplidores.map(s=>`<option value="${s.nombre}">${s.nombre}</option>`).join('');
+  const cuentaSel = document.getElementById('cxpCuentaBanco');
+  if(cuentaSel) cuentaSel.innerHTML = '<option value="">— Seleccionar —</option>' + (DB.bancos||[]).map(b=>`<option value="${b.id}">${b.banco} — ${b.numCuenta} (${b.moneda})</option>`).join('');
   document.getElementById('cxpVence').value = new Date().toISOString().split('T')[0];
   if(id){
     const c = DB.cxp.find(x=>x.id===id);
@@ -1406,8 +1552,11 @@ function openCXPModal(id=null){
     document.getElementById('cxpConcepto').value = c.concepto;
     document.getElementById('cxpMonto').value = c.monto;
     document.getElementById('cxpVence').value = c.vence;
+    document.getElementById('cxpEstado').value = c.estado||'PENDIENTE';
+    if(cuentaSel) cuentaSel.value = c.cuentaBancoId||'';
   } else {
     ['cxpConcepto','cxpMonto'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('cxpEstado').value = 'PENDIENTE';
   }
   openModal('cxpModal');
 }
@@ -1416,7 +1565,8 @@ function saveCXP(){
   const c = document.getElementById('cxpConcepto').value.trim();
   const m = +document.getElementById('cxpMonto').value;
   if(!s||!c||!m){toast('Complete todos los campos','error');return;}
-  const obj = {suplidor:s, concepto:c.toUpperCase(), monto:m, vence:document.getElementById('cxpVence').value, estado:'PENDIENTE'};
+  const cuentaBancoId = document.getElementById('cxpCuentaBanco')?.value||'';
+  const obj = {suplidor:s, concepto:c.toUpperCase(), monto:m, vence:document.getElementById('cxpVence').value, estado:document.getElementById('cxpEstado').value||'PENDIENTE', cuentaBancoId};
   if(editId_mat.cxp){
     obj.id = editId_mat.cxp;
     DB.cxp[DB.cxp.findIndex(x=>x.id===editId_mat.cxp)] = obj;
@@ -1430,7 +1580,7 @@ function saveCXP(){
   renderCXP();
   checkAlarmas();
 }
-function pagarCXP(id){const c=DB.cxp.find(x=>x.id===id);if(c){c.estado='PAGADO';renderCXP();checkAlarmas();toast('Pago registrado ✓');}}
+function pagarCXP(id){const c=DB.cxp.find(x=>x.id===id);if(c){c.estado='PAGADA';renderCXP();checkAlarmas();toast('Pago registrado ✓');}}
 function delCXP(id){confirm2('¿Eliminar CXP?',function(ok){if(!ok)return;DB.cxp=DB.cxp.filter(x=>x.id!==id);renderCXP();toast('Eliminada','info');});}
 function renderCXP(){
   const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -1439,19 +1589,21 @@ function renderCXP(){
     const vd = new Date(c.vence); const diff = Math.ceil((vd-hoy)/86400000);
     const alerta = diff<=7 && c.estado==='PENDIENTE';
     if(alerta) alarm = true;
-    const estBadge = c.estado==='PAGADO'?'badge-success':'badge-warning';
+    const estBadge = c.estado==='PAGADA'?'badge-success':c.estado==='ABONADA'?'badge-info':'badge-warning';
+    const banco = c.cuentaBancoId ? (DB.bancos||[]).find(b=>b.id==c.cuentaBancoId) : null;
     return`<tr ${alerta?'style="background:#fffbeb;"':''}>
       <td>${c.id}</td><td class="fw-600">${c.suplidor}</td><td>${c.concepto}</td>
       <td class="fw-600">${fmt(c.monto)}</td>
       <td>${c.vence} ${alerta?`<span class="badge badge-danger">${diff}d</span>`:''}</td>
+      <td style="font-size:.78rem;">${banco?banco.banco+' — '+banco.numCuenta:'<span style="color:var(--text2);">—</span>'}</td>
       <td><span class="badge ${estBadge}">${c.estado}</span></td>
       <td><div class="flex gap-2">
-        ${c.estado!=='PAGADO'?`<button class="btn-icon pay" onclick="pagarCXP(${c.id})">💵</button>`:''}
+        ${c.estado!=='PAGADA'?`<button class="btn-icon pay" onclick="pagarCXP(${c.id})">💵</button>`:''}
         <button class="btn-icon edit" onclick="openCXPModal(${c.id})">✏️</button>
         <button class="btn-icon del" onclick="delCXP(${c.id})">🗑️</button>
       </div></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin cuentas por pagar</td></tr>';
+  }).join('')||'<tr><td colspan="8" class="text-center" style="padding:24px;color:var(--text2);">Sin cuentas por pagar</td></tr>';
   // show alarm banner
   const banner = document.getElementById('cxpAlarmBanner');
   if(banner) banner.style.display = alarm ? 'flex' : 'none';
@@ -1872,6 +2024,21 @@ let rpPiezas  = {}; // {BONETE:{tipo:'paint'}, ...}
 let rpEditId  = null;
 let rpSpecials = {};
 
+function rpCalcFechaEntrega(){
+  const tiempoSel=document.getElementById('rpTiempo')?.value||'A convenir';
+  const fechaInicio=document.getElementById('rpFecha')?.value||new Date().toISOString().split('T')[0];
+  const dias={'1-2 días':2,'3-5 días':5,'1 semana':7,'2 semanas':14,'1 mes':30};
+  const d=dias[tiempoSel];
+  if(d){
+    const fe=new Date(fechaInicio+'T12:00:00');
+    fe.setDate(fe.getDate()+d);
+    const el=document.getElementById('rpFechaEntrega');
+    if(el) el.value=fe.toISOString().split('T')[0];
+  } else {
+    const el=document.getElementById('rpFechaEntrega');
+    if(el) el.value='';
+  }
+}
 function rpSetTipo(t){ rpCurTipo=t; }
 
 function rpTogglePart(p){
@@ -1908,7 +2075,7 @@ function rpRenderPiezasTbl(){
     return`<tr>
       <td style="padding:6px 10px;font-weight:600;font-size:.82rem;">${p}</td>
       <td><span style="font-size:.75rem;padding:3px 8px;border-radius:4px;background:${RP_TYPE_COLOR[d.tipo]||'#eee'}22;color:${RP_TYPE_COLOR[d.tipo]||'#555'};font-weight:600;">${RP_TYPE_LABEL[d.tipo]||d.tipo}</span></td>
-      <td><select class="form-control" style="font-size:.78rem;padding:4px;" onchange="rpPiezas['${p}'].techId=this.value">${empOpts.replace(`value="${d.techId||''}"`,`value="${d.techId||''}" selected`)}</select></td>
+      <td><select class="form-control" style="font-size:.78rem;padding:4px;min-width:160px;" onchange="rpPiezas['${p}'].techId=this.value">${empOpts.replace(`value="${d.techId||''}"`,`value="${d.techId||''}" selected`)}</select></td>
       <td><input type="number" class="form-control" style="font-size:.78rem;padding:4px;width:100px;" placeholder="0" value="${d.montoTech||''}" oninput="rpPiezas['${p}'].montoTech=+this.value;rpCalcTotal()"></td>
       <td><input type="number" class="form-control" style="font-size:.78rem;padding:4px;width:100px;" placeholder="0" value="${d.precioCliente||''}" oninput="rpPiezas['${p}'].precioCliente=+this.value;rpCalcTotal()"></td>
       <td><button class="btn-icon del" onclick="delete rpPiezas['${p}'];rpRenderParts();rpUpdateDiagram();rpRenderPiezasTbl()">✕</button></td>
@@ -1920,7 +2087,7 @@ function rpRenderPiezasTbl(){
     return`<tr style="background:#fafff4;">
       <td style="padding:6px 10px;font-weight:600;font-size:.82rem;">${d.label}</td>
       <td><span style="font-size:.75rem;padding:3px 8px;border-radius:4px;background:#f0fdf4;color:#16a34a;font-weight:600;">Adicional</span></td>
-      <td><select class="form-control" style="font-size:.78rem;padding:4px;" onchange="rpSpecials['${k}'].techId=this.value">${empOpts.replace(`value="${d.techId||''}"`,`value="${d.techId||''}" selected`)}</select></td>
+      <td><select class="form-control" style="font-size:.78rem;padding:4px;min-width:160px;" onchange="rpSpecials['${k}'].techId=this.value">${empOpts.replace(`value="${d.techId||''}"`,`value="${d.techId||''}" selected`)}</select></td>
       <td><input type="number" class="form-control" style="font-size:.78rem;padding:4px;width:100px;" placeholder="0" value="${d.montoTech||''}" oninput="rpSpecials['${k}'].montoTech=+this.value;rpCalcTotal()"></td>
       <td><input type="number" class="form-control" style="font-size:.78rem;padding:4px;width:100px;" placeholder="0" value="${d.precioCliente||''}" oninput="rpSpecials['${k}'].precioCliente=+this.value;rpCalcTotal()"></td>
       <td><button class="btn-icon del" onclick="rpRemoveSpecial('${k}')">✕</button></td>
@@ -2237,6 +2404,8 @@ function openRecepcionModal(id=null){
       document.getElementById('rpDcto').value=r.dcto||'';
       document.getElementById('rpNotas').value=r.notas||'';
       document.getElementById('rpEstado').value=r.estado||'RECIBIDO';
+      const feEl=document.getElementById('rpFechaEntrega');
+      if(feEl) feEl.value=r.fechaEntrega||'';
       rpPiezas=JSON.parse(JSON.stringify(r.piezas||{}));
       rpSpecials=JSON.parse(JSON.stringify(r.specials||{}));
     }
@@ -2274,6 +2443,7 @@ function saveRecepcion(imprimir=false){
     totalEst:(()=>{const sub=Object.values(rpPiezas||{}).reduce((a,d)=>a+(+d.precioCliente||0),0)+Object.values(rpSpecials||{}).reduce((a,d)=>a+(+d.precioCliente||0),0);const itbisOn=document.getElementById('rpItbisToggle')?.checked;const itbis=itbisOn?Math.round(sub*0.18):0;const dc=+(document.getElementById('rpDcto')?.value)||0;return sub+itbis-dc;})(),
     notas:document.getElementById('rpNotas').value,
     estado:document.getElementById('rpEstado').value,
+    fechaEntrega:document.getElementById('rpFechaEntrega')?.value||null,
   };
   if(rpEditId){
     obj.id=rpEditId;
@@ -2305,16 +2475,26 @@ function renderRecepcion(s=''){
   if(s) d=d.filter(r=>(r.nombre+(DB.clientes.find(c=>c.id===r.clienteId)?.nombre||'')).toLowerCase().includes(s.toLowerCase()));
   const sM={RECIBIDO:'warning','EN PROCESO':'info',ENTREGADO:'success'};
   const tipoLabel={carro:'🚗 Carro',suv:'🚙 SUV',camioneta:'🛻 Camioneta'};
+  const hoyD=new Date(); hoyD.setHours(0,0,0,0);
   document.getElementById('recepTable').innerHTML=d.length?d.map(r=>{
     const cl=DB.clientes.find(c=>c.id===r.clienteId);
     const nPiezas=Object.keys(r.piezas||{}).length;
     const servs=Object.keys(r.specials||{}).length;
+    // Alerta fecha entrega
+    let alertaHtml='';
+    if(r.fechaEntrega&&r.estado!=='ENTREGADO'){
+      const fe=new Date(r.fechaEntrega+'T12:00:00');
+      const diff=Math.floor((fe-hoyD)/86400000);
+      if(diff<0) alertaHtml=`<br><span class="badge badge-danger" style="font-size:.65rem;">🚨 VENCIDO ${Math.abs(diff)}d</span>`;
+      else if(diff===0) alertaHtml=`<br><span class="badge badge-danger" style="font-size:.65rem;">🔴 ENTREGA HOY</span>`;
+      else if(diff<=2) alertaHtml=`<br><span class="badge badge-warning" style="font-size:.65rem;">⚠️ Entrega en ${diff}d</span>`;
+    }
     return`<tr>
       <td class="fw-600">#${String(r.id).padStart(4,'0')}</td>
       <td>${r.fecha||'-'}</td>
       <td class="fw-600">${r.nombre}<br><small style="color:var(--text2);">${r.color||''}</small></td>
       <td style="font-size:.82rem;">${cl?.nombre||'-'}</td>
-      <td>${tipoLabel[r.tipo]||r.tipo}</td>
+      <td>${tipoLabel[r.tipo]||r.tipo}${alertaHtml}</td>
       <td style="font-size:.79rem;">${nPiezas} pieza${nPiezas!==1?'s':''} · ${servs} serv.</td>
       <td class="fw-600">${fmt(r.totalEst||0)}</td>
       <td><span class="badge badge-${sM[r.estado]||'info'}">${r.estado}</span></td>
@@ -2726,18 +2906,55 @@ function registrarAbono(factId){
   if(!f) return;
   const cl=DB.clientes.find(c=>c.id===f.clienteId);
   const pendiente=f.total-(f.montoPagado||0);
-  const monto=+prompt(`Abono — ${cl?.nombre||''}
-Pendiente: ${fmt(pendiente)}
-Ingrese monto:`)||0;
-  if(!monto||monto<=0){return;}
+  const bancoOpts='<option value="">— Sin cuenta específica —</option>'+(DB.bancos||[]).map(b=>`<option value="${b.id}">${b.banco} — ${b.numCuenta} (${b.moneda})</option>`).join('');
+  // Crear mini-modal dinámico
+  let abonoModal=document.getElementById('abonoModal');
+  if(!abonoModal){
+    const d=document.createElement('div');
+    d.innerHTML=`<div class="modal-overlay" id="abonoModal">
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-header"><span class="modal-title">💰 Registrar Abono</span><button class="modal-close" onclick="closeModal('abonoModal')">✕</button></div>
+        <div class="modal-body">
+          <div id="abonoInfo" style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;"></div>
+          <div class="form-row"><label class="form-label">Monto Abono (RD$)</label><input type="number" id="abonoMonto" class="form-control" placeholder="0.00"></div>
+          <div class="form-row"><label class="form-label">Cuenta Bancaria (destino)</label><select id="abonoCuenta" class="form-control"></select></div>
+          <div class="form-row"><label class="form-label">Forma de Pago</label><select id="abonoForma" class="form-control"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option></select></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('abonoModal')">Cancelar</button>
+          <button class="btn btn-success" onclick="confirmarAbono()">✓ Confirmar Abono</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(d.firstChild);
+    abonoModal=document.getElementById('abonoModal');
+  }
+  document.getElementById('abonoInfo').innerHTML=`<strong>Cliente:</strong> ${cl?.nombre||'—'}<br><strong>Pendiente:</strong> <span class="fw-600 text-danger">${fmt(pendiente)}</span>`;
+  document.getElementById('abonoMonto').value='';
+  document.getElementById('abonoCuenta').innerHTML=bancoOpts;
+  window.__abonoFactId=factId;
+  openModal('abonoModal');
+}
+
+function confirmarAbono(){
+  const factId=window.__abonoFactId;
+  const f=DB.facturas.find(x=>x.id===factId);
+  if(!f) return;
+  const cl=DB.clientes.find(c=>c.id===f.clienteId);
+  const pendiente=f.total-(f.montoPagado||0);
+  const monto=+document.getElementById('abonoMonto').value||0;
+  if(!monto||monto<=0){toast('Ingrese un monto','error');return;}
   if(monto>pendiente){toast(`Excede pendiente ${fmt(pendiente)}`,'error');return;}
+  const cuentaId=document.getElementById('abonoCuenta')?.value||'';
+  const forma=document.getElementById('abonoForma')?.value||'Efectivo';
   f.montoPagado=(f.montoPagado||0)+monto;
   f.estatus=f.montoPagado>=f.total?'PAGADO':'PENDIENTE';
-  DB.caja.push({id:DB.nxt.caj++,fecha:new Date().toISOString().split('T')[0],concepto:`Abono Fact.#${factId} — ${cl?.nombre||''}`,mover:'ENTRADA',monto});
+  DB.caja.push({id:DB.nxt.caj++,fecha:new Date().toISOString().split('T')[0],concepto:`Abono Fact.#${factId} — ${cl?.nombre||''}`,mover:'ENTRADA',monto,cuenta:cuentaId,tipo:forma,moneda:'PESOS',estatus:'COBRADO',desc:`Abono factura #${factId}`,persona:cl?.nombre||''});
   if(!f.abonos) f.abonos=[];
-  f.abonos.push({fecha:new Date().toISOString().split('T')[0],monto,usuario:CU?.nombre||'Admin'});
+  f.abonos.push({fecha:new Date().toISOString().split('T')[0],monto,usuario:CU?.nombre||'Admin',cuentaId,forma});
   logBit('FACTURA','Abono',`Fact#${factId} — ${fmt(monto)} — Pend:${fmt(f.total-f.montoPagado)}`);
   toast(f.estatus==='PAGADO'?`✅ Factura #${factId} saldada`:`💰 Abono ${fmt(monto)} registrado`);
+  closeModal('abonoModal');
   renderCXC();
 }
 
@@ -2939,6 +3156,334 @@ showPage=function(page){
 // Patch closeWelcome to apply nav filter
 const _cwM=closeWelcome;
 closeWelcome=function(){_cwM();setTimeout(uFilterNav,200);};
+
+// ═══════════════════════════════════════
+// MÓDULO CUENTAS BANCARIAS
+// ═══════════════════════════════════════
+if(!DB.bancos) DB.bancos=[
+  {id:1,banco:'BANRESERVAS',numCuenta:'001-123456-7',moneda:'PESOS',tipo:'CORRIENTE',titular:'ROGASEV MULTISERVICE'},
+  {id:2,banco:'BHD LEON',numCuenta:'27500001234',moneda:'PESOS',tipo:'AHORROS',titular:'ROGASEV MULTISERVICE'},
+];
+if(!DB.nxt.banco) DB.nxt.banco=3;
+const editId_banco={b:null};
+
+function getBancoLabel(id){const b=(DB.bancos||[]).find(x=>x.id==id);return b?`${b.banco} — ${b.numCuenta} (${b.moneda})`:'—';}
+
+function populateBancosSelects(){
+  const opts='<option value="">— Sin cuenta —</option>'+(DB.bancos||[]).map(b=>`<option value="${b.id}">${b.banco} — ${b.numCuenta} (${b.moneda})</option>`).join('');
+  ['mCuentaBanco','cxpCuentaBanco','rpCuentaBanco','fCuentaBanco'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.innerHTML=opts;
+  });
+  // cajCuenta usa select libre aún, pero lo llenamos con bancos registrados
+  const cajEl=document.getElementById('cajCuenta');
+  if(cajEl)cajEl.innerHTML='<option value="">— Seleccionar cuenta —</option>'+(DB.bancos||[]).map(b=>`<option value="${b.id}">${b.banco} — ${b.numCuenta}</option>`).join('');
+}
+
+function renderBancos(){
+  document.getElementById('bancoTable').innerHTML=(DB.bancos||[]).map(b=>`<tr>
+    <td>${b.id}</td>
+    <td class="fw-600">${b.banco}</td>
+    <td style="font-family:monospace;">${b.numCuenta}</td>
+    <td><span class="badge badge-info">${b.moneda}</span></td>
+    <td><span class="badge badge-secondary">${b.tipo}</span></td>
+    <td>${b.titular}</td>
+    <td><div class="flex gap-2">
+      <button class="btn-icon edit" onclick="openBancoModal(${b.id})">✏️</button>
+      <button class="btn-icon del" onclick="delBanco(${b.id})">🗑️</button>
+    </div></td>
+  </tr>`).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin cuentas bancarias</td></tr>';
+}
+
+function openBancoModal(id=null){
+  editId_banco.b=id;
+  // Build modal dynamically
+  let existing=document.getElementById('bancoModal');
+  if(!existing){
+    const div=document.createElement('div');
+    div.innerHTML=`<div class="modal-overlay" id="bancoModal">
+      <div class="modal" style="max-width:520px;">
+        <div class="modal-header"><span class="modal-title" id="bancoModalTitle">Nueva Cuenta Bancaria</span><button class="modal-close" onclick="closeModal('bancoModal')">✕</button></div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-row"><label class="form-label">Banco *</label><input id="bBanco" class="form-control" placeholder="Ej: BANRESERVAS"></div>
+            <div class="form-row"><label class="form-label">Número de Cuenta *</label><input id="bNumCuenta" class="form-control" placeholder="000-000000-0"></div>
+            <div class="form-row"><label class="form-label">Moneda</label><select id="bMoneda" class="form-control"><option>PESOS</option><option>DÓLARES</option><option>EUROS</option></select></div>
+            <div class="form-row"><label class="form-label">Tipo</label><select id="bTipo" class="form-control"><option>CORRIENTE</option><option>AHORROS</option><option>CAJA FUERTE</option></select></div>
+            <div class="form-row" style="grid-column:1/-1;"><label class="form-label">Titular</label><input id="bTitular" class="form-control" placeholder="Nombre del titular"></div>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('bancoModal')">Cancelar</button><button class="btn btn-primary" onclick="saveBanco()">💾 Guardar</button></div>
+      </div>
+    </div>`;
+    document.body.appendChild(div.firstChild);
+  }
+  document.getElementById('bancoModalTitle').textContent=id?'Editar Cuenta Bancaria':'Nueva Cuenta Bancaria';
+  if(id){
+    const b=(DB.bancos||[]).find(x=>x.id===id);
+    if(b){
+      document.getElementById('bBanco').value=b.banco;
+      document.getElementById('bNumCuenta').value=b.numCuenta;
+      document.getElementById('bMoneda').value=b.moneda;
+      document.getElementById('bTipo').value=b.tipo;
+      document.getElementById('bTitular').value=b.titular;
+    }
+  } else {
+    ['bBanco','bNumCuenta','bTitular'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('bMoneda').value='PESOS';
+    document.getElementById('bTipo').value='CORRIENTE';
+  }
+  openModal('bancoModal');
+}
+
+function saveBanco(){
+  const banco=document.getElementById('bBanco').value.trim().toUpperCase();
+  const num=document.getElementById('bNumCuenta').value.trim();
+  if(!banco||!num){toast('Ingrese banco y número de cuenta','error');return;}
+  const obj={banco,numCuenta:num,moneda:document.getElementById('bMoneda').value,tipo:document.getElementById('bTipo').value,titular:document.getElementById('bTitular').value.trim().toUpperCase()};
+  if(!DB.bancos) DB.bancos=[];
+  if(editId_banco.b){obj.id=editId_banco.b;DB.bancos[DB.bancos.findIndex(x=>x.id===editId_banco.b)]=obj;toast('Cuenta actualizada ✓');}
+  else{obj.id=DB.nxt.banco++;DB.bancos.push(obj);toast('Cuenta guardada ✓');}
+  closeModal('bancoModal');
+  renderBancos();
+  populateBancosSelects();
+}
+
+function delBanco(id){confirm2('¿Eliminar cuenta bancaria?',ok=>{if(!ok)return;DB.bancos=(DB.bancos||[]).filter(x=>x.id!==id);renderBancos();populateBancosSelects();toast('Eliminada','info');});}
+
+// ═══════════════════════════════════════
+// MATERIALES — actualizado con cuenta bancaria y no cierra en misma OC
+// ═══════════════════════════════════════
+let matOcItems=[]; // lista de materiales de la OC actual
+
+function openMatModal(id=null){
+  editId_mat.m = id;
+  matOcItems=[];
+  document.getElementById('matModalTitle').textContent = id ? 'Editar Material' : 'Nuevo Material';
+  const sel = document.getElementById('mSuplidor');
+  if(sel) sel.innerHTML = '<option value="">Sin suplidor</option>' + DB.suplidores.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('');
+  ['mNombre','mCosto','mStock','mCantidad','mRef'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  const fechaEl=document.getElementById('mFecha');
+  if(fechaEl) fechaEl.value=new Date().toISOString().split('T')[0];
+  const rb=document.getElementById('mPagoContado');
+  if(rb) rb.checked=true;
+  const cf=document.getElementById('mCreditoFields');
+  if(cf) cf.style.display='none';
+  const cuentaF=document.getElementById('mCuentaFields');
+  if(cuentaF) cuentaF.style.display='block';
+  const tc=document.getElementById('mTotalCalc');
+  if(tc) tc.textContent='RD$ 0';
+  populateBancosSelects();
+  if(id){
+    const m=DB.materiales.find(x=>x.id===id);
+    if(m){
+      document.getElementById('mNombre').value=m.nombre||'';
+      document.getElementById('mCategoria').value=m.categoria||'Pintura';
+      document.getElementById('mCosto').value=m.costo||'';
+      document.getElementById('mStock').value=m.stock||'';
+      if(fechaEl) fechaEl.value=m.fecha||new Date().toISOString().split('T')[0];
+    }
+  }
+  const ocCont=document.getElementById('mOcListContainer');
+  if(ocCont) ocCont.style.display='none';
+  openModal('matModal');
+}
+
+function mTogglePago(){
+  const isCredito=document.getElementById('mPagoCredito')?.checked;
+  const cf=document.getElementById('mCreditoFields');
+  const cf2=document.getElementById('mCuentaFields');
+  if(cf) cf.style.display=isCredito?'block':'none';
+  if(cf2) cf2.style.display=isCredito?'none':'block';
+}
+
+function mAddCategoria(){
+  const nueva=prompt('Nombre de la nueva categoría:','');
+  if(!nueva||!nueva.trim()) return;
+  const sel=document.getElementById('mCategoria');
+  const opt=document.createElement('option');
+  opt.value=nueva.trim();opt.textContent=nueva.trim();
+  sel.appendChild(opt);sel.value=nueva.trim();
+  // Persistir en DB
+  if(!DB.matCategorias) DB.matCategorias=[];
+  if(!DB.matCategorias.includes(nueva.trim())) DB.matCategorias.push(nueva.trim());
+  toast('Categoría agregada ✓','info');
+}
+
+function saveMat(keepOpen=false){
+  const n = document.getElementById('mNombre').value.trim();
+  if(!n){toast('Ingrese nombre','error');return;}
+  const costo=+document.getElementById('mCosto').value||0;
+  const cant=+(document.getElementById('mCantidad')?.value)||0;
+  const stockActual=+document.getElementById('mStock').value||0;
+  const isCredito=document.getElementById('mPagoCredito')?.checked;
+  const fecha=document.getElementById('mFecha')?.value||new Date().toISOString().split('T')[0];
+  const cuentaBancoId=document.getElementById('mCuentaBanco')?.value||'';
+  const obj = {
+    nombre: n.toUpperCase(),
+    categoria: document.getElementById('mCategoria').value,
+    costo, stock: editId_mat.m ? stockActual : stockActual+cant,
+    suplidorId: document.getElementById('mSuplidor').value,
+    fecha, ref: document.getElementById('mRef')?.value.trim()||'',
+    formaPago: isCredito?'CREDITO':'CONTADO',
+    cuentaBancoId,
+  };
+  if(editId_mat.m){
+    obj.id = editId_mat.m;
+    DB.materiales[DB.materiales.findIndex(x=>x.id===editId_mat.m)] = obj;
+    toast('Material actualizado ✓');
+    logBit('ORDEN','Material editado',obj.nombre);
+    if(!keepOpen){closeModal('matModal');renderMateriales();}
+    return;
+  }
+  obj.id = DB.nxt.mat++;
+  DB.materiales.push(obj);
+  const totalCompra=costo*cant;
+  if(!DB.kardex) DB.kardex=[];
+  DB.kardex.push({fecha,matId:obj.id,matNombre:obj.nombre,tipo:'ENTRADA',concepto:'Compra',modulo:'MATERIALES',entrada:cant,salida:0,stock:obj.stock,ref:obj.ref,formaPago:obj.formaPago});
+  if(!isCredito && totalCompra>0){
+    const banco=getBancoLabel(cuentaBancoId);
+    DB.caja.push({id:DB.nxt.caj++,fecha,concepto:`Compra: ${obj.nombre}`,mover:'SALIDA',monto:totalCompra,ref:obj.ref,cuenta:cuentaBancoId,desc:`Compra material: ${obj.nombre}`,tipo:'EFECTIVO',moneda:'PESOS',estatus:'PAGADO',persona:''});
+  }
+  if(isCredito && totalCompra>0){
+    const vence=document.getElementById('mVence')?.value||'';
+    DB.cxp.push({id:DB.nxt.cxp++,suplidor:DB.suplidores.find(s=>s.id==obj.suplidorId)?.nombre||'Sin suplidor',concepto:`Compra: ${obj.nombre} (${cant} unid.)`,monto:totalCompra,vence,estado:'PENDIENTE',ref:obj.ref});
+    toast(`💳 CXP creada: ${fmt(totalCompra)}`,'info');
+  }
+  matOcItems.push({nombre:obj.nombre,cant,costo,total:totalCompra});
+  toast(keepOpen?`✓ ${obj.nombre} agregado — sigue agregando`:'Material guardado ✓');
+  logBit('ORDEN','Compra material',`${obj.nombre} ×${cant} — ${obj.formaPago} — ${fmt(totalCompra)}`);
+  if(keepOpen){
+    // Limpiar solo nombre, cantidad; mantener suplidor, fecha, forma de pago
+    ['mNombre','mCantidad','mRef'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+    document.getElementById('mCosto').value='';
+    document.getElementById('mTotalCalc').textContent='RD$ 0';
+    // Mostrar lista OC
+    const ocCont=document.getElementById('mOcListContainer');
+    const ocList=document.getElementById('mOcList');
+    if(ocCont&&ocList){
+      ocCont.style.display='block';
+      ocList.innerHTML=matOcItems.map(it=>`<div style="display:flex;justify-content:space-between;padding:4px 8px;font-size:.8rem;border-bottom:1px solid #f1f5f9;"><span>• ${it.nombre} ×${it.cant}</span><span class="fw-600">${fmt(it.total)}</span></div>`).join('');
+    }
+    renderMateriales();
+  } else {
+    closeModal('matModal');
+    renderMateriales();
+  }
+}
+
+// ═══════════════════════════════════════
+// FORMATO PESOS — aplicar al escribir
+// ═══════════════════════════════════════
+function fmtPesosInput(input){
+  let v=input.value.replace(/[^0-9]/g,'');
+  if(!v){input.value='';return;}
+  input.value=Number(v).toLocaleString('es-DO');
+}
+
+// ═══════════════════════════════════════
+// ORDEN DE TRABAJO — Alertas de entrega
+// ═══════════════════════════════════════
+function checkOrdenAlertas(){
+  const hoy=new Date(); hoy.setHours(0,0,0,0);
+  // Busca recepciones con fecha estimada de entrega vencida
+  (DB.recepciones||[]).forEach(r=>{
+    if(r.estado==='ENTREGADO'||r.estado==='FACTURADO') return;
+    if(!r.fechaEntrega) return;
+    const fe=new Date(r.fechaEntrega+'T12:00:00');
+    const diff=Math.floor((fe-hoy)/86400000);
+    if(diff<=0 && !r._alertaEnviada){
+      r._alertaEnviada=true;
+      const cl=DB.clientes.find(c=>c.id===r.clienteId);
+      toast(`🚨 Entrega vencida: ${r.nombre} (${cl?.nombre||'—'})`, 'error');
+    } else if(diff===1 && !r._alertaProxima){
+      r._alertaProxima=true;
+      const cl=DB.clientes.find(c=>c.id===r.clienteId);
+      toast(`⚠️ Entrega mañana: ${r.nombre} (${cl?.nombre||'—'})`, 'info');
+    }
+  });
+}
+
+// ═══════════════════════════════════════
+// RECEPCIÓN — campo fecha entrega estimada
+// ═══════════════════════════════════════
+// Patch saveRecepcion para guardar fechaEntrega
+const _origSaveRecepcion=saveRecepcion;
+saveRecepcion=function(imprimir=false){
+  // Agrega fechaEntrega calculada si no existe
+  const tiempoSel=document.getElementById('rpTiempo')?.value||'A convenir';
+  const fechaInicio=document.getElementById('rpFecha')?.value||new Date().toISOString().split('T')[0];
+  const dias={'1-2 días':2,'3-5 días':5,'1 semana':7,'2 semanas':14,'1 mes':30,'A convenir':null};
+  const d=dias[tiempoSel];
+  if(d){
+    const fe=new Date(fechaInicio+'T12:00:00');
+    fe.setDate(fe.getDate()+d);
+    const feStr=fe.toISOString().split('T')[0];
+    // Guardamos en el objeto a través de un campo temporal
+    window.__rpFechaEntrega=feStr;
+  } else {
+    window.__rpFechaEntrega=null;
+  }
+  _origSaveRecepcion(imprimir);
+};
+
+
+// ═══════════════════════════════════════
+// CAJA — usar cuentas bancarias registradas
+// ═══════════════════════════════════════
+const _origOpenCajaModal=openCajaModal;
+openCajaModal=function(id=null){
+  _origOpenCajaModal(id);
+  // Repoblar con cuentas bancarias reales
+  const cajEl=document.getElementById('cajCuenta');
+  if(cajEl){
+    const cur=cajEl.value;
+    cajEl.innerHTML='<option value="">— Seleccionar cuenta —</option>'+(DB.bancos||[]).map(b=>`<option value="${b.id}" ${b.id==cur?'selected':''}>${b.banco} — ${b.numCuenta} (${b.moneda})</option>`).join('');
+    cajEl.value=cur;
+  }
+};
+
+// ═══════════════════════════════════════
+// SHOWPAGE — agregar bancos
+// ═══════════════════════════════════════
+const _spM2=showPage;
+showPage=function(page){
+  _spM2(page);
+  if(page==='bancos'){renderBancos();populateBancosSelects();}
+  if(page==='materiales'){
+    // Rellenar categorías personalizadas
+    const sel=document.getElementById('mCategoria');
+    if(sel&&DB.matCategorias){DB.matCategorias.forEach(c=>{if(![...sel.options].find(o=>o.value===c)){const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);}});}
+  }
+};
+
+// ═══════════════════════════════════════
+// INDICADOR FIREBASE (MODO ONLINE)
+// ═══════════════════════════════════════
+(function(){
+  // Indicador visible que el sistema está en modo local (sin Firebase)
+  const indicator=document.createElement('div');
+  indicator.id='fbIndicator';
+  indicator.style.cssText='position:fixed;top:60px;right:14px;z-index:9998;background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:5px 12px;font-size:.74rem;font-weight:600;color:#a16207;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,.08);';
+  indicator.innerHTML='💾 Modo Local — Datos en este navegador';
+  document.body.appendChild(indicator);
+
+  // Ocultar el indicador en pantalla de login
+  const origShowApp=closeWelcome;
+})();
+
+// ═══════════════════════════════════════
+// INIT — al cerrar welcome
+// ═══════════════════════════════════════
+const _cwM2=closeWelcome;
+closeWelcome=function(){
+  _cwM2();
+  setTimeout(()=>{
+    populateBancosSelects();
+    checkOrdenAlertas();
+  },300);
+};
+
+
 
 </script>
 </body></html>
