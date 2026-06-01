@@ -1131,7 +1131,24 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="form-row"><label class="form-label">Usuario (login)</label><input class="form-control" id="uUser"></div>
       <div class="form-row"><label class="form-label">Nombre Completo</label><input class="form-control" id="uNombre"></div>
       <div class="form-row"><label class="form-label">Contraseña</label><input type="password" class="form-control" id="uPass"></div>
-      <div class="form-row"><label class="form-label">Rol</label><select class="form-control" id="uRol"><option value="admin">Administrador</option><option value="operador">Operador</option></select></div>
+      <div class="form-row"><label class="form-label">Rol</label><select class="form-control" id="uRol" onchange="uApplyPreset(this.value)">
+  <optgroup label="── Roles con Acceso Total ──">
+    <option value="admin">👑 Administrador (todo)</option>
+    <option value="dueno">🏠 Dueño (todo + ver reportes)</option>
+  </optgroup>
+  <optgroup label="── Roles de Oficina ──">
+    <option value="secretaria">💼 Secretaria</option>
+  </optgroup>
+  <optgroup label="── Roles de Taller ──">
+    <option value="pintor">🎨 Pintor</option>
+    <option value="desabollador">🔨 Desabollador</option>
+    <option value="tecnico">🔧 Técnico General</option>
+    <option value="recepcionista">📋 Recepcionista</option>
+  </optgroup>
+  <optgroup label="── Personalizado ──">
+    <option value="operador">⚙️ Operador (personalizado)</option>
+  </optgroup>
+</select></div>
     </div>
     <div class="form-row mt-3">
       <label class="form-label">Módulos Permitidos <span style="color:var(--text2);font-size:.75rem;font-weight:400;">(Solo aplica a Operadores)</span></label>
@@ -1163,7 +1180,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
     </div>
     <div id="adminNote" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 14px;margin:8px 0;font-size:.82rem;color:var(--info);align-items:center;gap:8px;">
       <span style="font-size:1rem;">ℹ️</span>
-      <span>El <strong>Administrador</strong> tiene acceso a <strong>todos los módulos</strong> y <strong>todos los permisos</strong> automáticamente. Las opciones de arriba solo aplican a Operadores.</span>
+      <span>El <strong>Administrador</strong> y el <strong>Dueño</strong> tienen acceso a <strong>todos los módulos y permisos</strong> automáticamente. Para los demás roles, los permisos se cargan automáticamente al seleccionar el rol, pero pueden ajustarse.</span>
     </div>
     <div class="form-row mt-3"><label class="form-label">Estado</label><select class="form-control" id="uEstado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
     </div>
@@ -1180,7 +1197,7 @@ let CU=null,editId={v:null,f:null,c:null,e:null,s:null,cj:null,u:null};
 // ── Control de permisos ──────────────────────────────────────────────
 function canDo(accion){
   if(!CU) return false;
-  if(CU.rol==='admin') return true;
+  if(CU.rol==='admin'||CU.rol==='dueno') return true;
   return (CU.permisos||[]).includes(accion);
 }
 function canEdit(){ return canDo('perm_editar'); }
@@ -1225,7 +1242,10 @@ function doLogin(){
   const wm=document.getElementById('welcomeModal');
   wm.style.display='flex';
   document.getElementById('wName').textContent=found.nombre;
-  document.getElementById('wRole').textContent=found.rol==='admin'?'👑 Administrador':'⚙️ Operador';
+  const wRolLabels={admin:'👑 Administrador',dueno:'🏠 Dueño',secretaria:'💼 Secretaria',
+  pintor:'🎨 Pintor',desabollador:'🔨 Desabollador',tecnico:'🔧 Técnico',
+  recepcionista:'📋 Recepcionista',operador:'⚙️ Operador'};
+document.getElementById('wRole').textContent=wRolLabels[found.rol]||found.rol;
   // Mostrar indicador Firebase en topbar
   const ind=document.getElementById('fbIndicator');
   if(ind){
@@ -1241,7 +1261,9 @@ function doLogin(){
   // Iniciar listeners en tiempo real después del login
   if(window.FB_ONLINE && window.fbStartListeners) window.fbStartListeners();
 }
-function closeWelcome(){document.getElementById('welcomeModal').style.display='none';document.getElementById('mainApp').style.display='block';setTimeout(applyLogoEverywhere,50);document.getElementById('sidebarUser').textContent=CU.nombre;logBit('USUARIO','Inicio de sesión',`${CU.nombre} (${CU.rol})`);document.getElementById('sidebarRole').textContent=CU.rol==='admin'?'Administrador':'Operador';document.getElementById('sidebarAvatar').textContent=CU.nombre[0].toUpperCase();applyPerms();renderDashboard();}
+function closeWelcome(){document.getElementById('welcomeModal').style.display='none';document.getElementById('mainApp').style.display='block';setTimeout(applyLogoEverywhere,50);document.getElementById('sidebarUser').textContent=CU.nombre;logBit('USUARIO','Inicio de sesión',`${CU.nombre} (${CU.rol})`);const rolLabels={admin:'Administrador',dueno:'Dueño',secretaria:'Secretaria',
+  pintor:'Pintor',desabollador:'Desabollador',tecnico:'Técnico',recepcionista:'Recepcionista',operador:'Operador'};
+document.getElementById('sidebarRole').textContent=rolLabels[CU.rol]||CU.rol;document.getElementById('sidebarAvatar').textContent=CU.nombre[0].toUpperCase();applyPerms();renderDashboard();}
 function doLogout(){CU=null;document.getElementById('mainApp').style.display='none';document.getElementById('loginScreen').style.display='flex';['loginUser','loginPass'].forEach(id=>document.getElementById(id).value='');document.getElementById('loginError').style.display='none';const fbInd=document.getElementById('fbIndicator');if(fbInd)fbInd.style.display='none';}
 function applyPerms(){const a=CU.rol==='admin';document.querySelectorAll('.admin-only').forEach(el=>el.style.display=a?'':'none');document.querySelectorAll('.nav-item[data-page]').forEach(el=>{const p=el.getAttribute('data-page');el.style.display=(p==='dashboard'||a||CU.modulos.includes(p))?'flex':'none';});}
 function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+name)?.classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelector(`.nav-item[data-page="${name}"]`)?.classList.add('active');const t={dashboard:'Dashboard',vehiculos:'Órdenes de Trabajo',facturacion:'Facturación',clientes:'Clientes',empleados:'Empleados',suplidores:'Suplidores',materiales:'Materiales',cxp:'CXP — Por Pagar',cxc:'CXC — Por Cobrar',caja:'Caja',reportes:'Reportes',inventario:'Inventario — Kardex',recepcion:'Recepción de Vehículo',bitacora:'Bitácora del Sistema',config:'Configuración del Sistema',usuarios:'Usuarios',bancos:'Cuentas Bancarias'};document.getElementById('topbarTitle').textContent=t[name]||name;const r={dashboard:renderDashboard,vehiculos:()=>renderVeh(),facturacion:()=>renderFact(),clientes:()=>renderClients(),empleados:()=>renderEmp(),suplidores:()=>renderSup(),materiales:()=>renderMateriales(),cxp:()=>renderCXP(),cxc:()=>{showPage('facturacion');setTimeout(()=>switchFactTab('cobros'),50);},caja:()=>renderCaja(),reportes:renderReportes,inventario:renderInventario,recepcion:renderRecepcion,bitacora:()=>renderBitacora(),config:renderConfig,usuarios:renderUsers,bancos:()=>{renderBancos();populateBancosSelects();}};r[name]?.();}
@@ -1700,7 +1722,10 @@ document.getElementById('reportContent').innerHTML=`<div class="stats-grid"><div
 </div>`;}
 function renderUsers(){
   document.getElementById('userTable').innerHTML=DB.users.map(u=>{
-    const isAdmin=u.rol==='admin';
+    const isAdmin=u.rol==='admin'||u.rol==='dueno';
+    const ROL_BADGE={admin:'👑 Admin',dueno:'🏠 Dueño',secretaria:'💼 Secretaria',
+      pintor:'🎨 Pintor',desabollador:'🔨 Desabollador',tecnico:'🔧 Técnico',
+      recepcionista:'📋 Recepcionista',operador:'⚙️ Operador'};
     const mods=isAdmin?'<span class="badge badge-success" style="font-size:.68rem;">Todos los módulos</span>':
       (u.modulos||[]).filter(x=>x!=='dashboard').map(m=>`<span class="badge badge-info" style="margin:1px;font-size:.65rem;">${m}</span>`).join('');
     const perms=isAdmin?'<span class="badge badge-success" style="font-size:.68rem;">Todos los permisos</span>':
@@ -1714,7 +1739,7 @@ function renderUsers(){
       <td>${u.id}</td>
       <td class="fw-600">${u.user}</td>
       <td>${u.nombre}</td>
-      <td><span class="badge ${isAdmin?'badge-primary':'badge-secondary'}">${isAdmin?'👑 Admin':'⚙️ Operador'}</span></td>
+      <td><span class="badge ${isAdmin?'badge-primary':'badge-secondary'}">${ROL_BADGE[u.rol]||u.rol}</span></td>
       <td style="max-width:180px;font-size:.78rem;">${mods}</td>
       <td style="max-width:150px;">${perms}</td>
       <td><span class="badge ${u.estado==='activo'?'badge-success':'badge-danger'}">${u.estado}</span></td>
@@ -1747,7 +1772,7 @@ function openUserModal(id=null){
   // Mostrar/ocultar secciones según rol
   const rol=document.getElementById('uRol');
   function togglePerms(){
-    const isAdmin=rol.value==='admin';
+    const isAdmin=rol.value==='admin'||rol.value==='dueno';
     const modsDiv=document.getElementById('modulesCheck').closest('.form-row');
     const permsDiv=document.getElementById('permisosCheck').closest('.form-row');
     if(modsDiv) modsDiv.style.opacity=isAdmin?'0.4':'1';
@@ -1767,8 +1792,9 @@ function saveUser(){
   const isAdmin=rol==='admin';
   const ALL_MODS=['dashboard','vehiculos','recepcion','facturacion','clientes','empleados',
     'suplidores','materiales','inventario','cxp','caja','bancos','reportes','config','bitacora','usuarios'];
-  const mods=isAdmin?ALL_MODS:[...document.querySelectorAll('#modulesCheck input:checked')].map(cb=>cb.value);
-  const perms=isAdmin?['perm_editar','perm_borrar','perm_cobrar','perm_pagar']:
+  const isFullAccess=isAdmin||rol==='dueno';
+  const mods=isFullAccess?ALL_MODS:[...document.querySelectorAll('#modulesCheck input:checked')].map(cb=>cb.value);
+  const perms=isFullAccess?['perm_editar','perm_borrar','perm_cobrar','perm_pagar']:
     [...document.querySelectorAll('#permisosCheck input:checked')].map(cb=>cb.value);
   const obj={
     user:usr,pass,
@@ -4157,13 +4183,76 @@ const MODULOS_PERMS=[
   {key:'config',label:'⚙️ Config',acciones:['ver','editar']},
   {key:'usuarios',label:'🔐 Usuarios',acciones:['ver','crear','editar','borrar']},
 ];
+// Función helper: todos los permisos para un módulo
+function _allPerms(mods){
+  const p={};
+  mods.forEach(mod=>{
+    const m=MODULOS_PERMS.find(x=>x.key===mod);
+    if(m){p[mod]={};m.acciones.forEach(a=>p[mod][a]=true);}
+  });
+  return p;
+}
 const PRESETS={
-  admin:()=>{const p={};MODULOS_PERMS.forEach(m=>{p[m.key]={ver:true};m.acciones.forEach(a=>p[m.key][a]=true);});return p;},
-  tecnico:()=>({dashboard:{ver:true},recepcion:{ver:true},vehiculos:{ver:true,editar:true},materiales:{ver:true},inventario:{ver:true},empleados:{ver:true}}),
-  recepcionista:()=>({dashboard:{ver:true},recepcion:{ver:true,crear:true,editar:true},clientes:{ver:true,crear:true,editar:true},vehiculos:{ver:true,crear:true},facturacion:{ver:true},materiales:{ver:true},inventario:{ver:true}}),
-  operador:()=>({dashboard:{ver:true},recepcion:{ver:true,crear:true},vehiculos:{ver:true,crear:true,editar:true},clientes:{ver:true,crear:true},materiales:{ver:true},inventario:{ver:true}}),
+  // Acceso total
+  admin:()=>{const p={};MODULOS_PERMS.forEach(m=>{p[m.key]={};m.acciones.forEach(a=>p[m.key][a]=true);});return p;},
+  dueno:()=>{const p={};MODULOS_PERMS.forEach(m=>{p[m.key]={};m.acciones.forEach(a=>p[m.key][a]=true);});return p;},
+
+  // Secretaria: todo excepto config y usuarios
+  secretaria:()=>_allPerms(['dashboard','recepcion','vehiculos','facturacion','clientes',
+    'empleados','suplidores','materiales','inventario','cxp','caja','bancos','reportes','bitacora']),
+
+  // Pintor: su trabajo y materiales
+  pintor:()=>({
+    dashboard:{ver:true},
+    recepcion:{ver:true},
+    vehiculos:{ver:true,editar:true},
+    materiales:{ver:true},
+    inventario:{ver:true},
+    empleados:{ver:true},
+  }),
+
+  // Desabollador: igual que pintor
+  desabollador:()=>({
+    dashboard:{ver:true},
+    recepcion:{ver:true},
+    vehiculos:{ver:true,editar:true},
+    materiales:{ver:true},
+    inventario:{ver:true},
+    empleados:{ver:true},
+  }),
+
+  // Técnico general
+  tecnico:()=>({
+    dashboard:{ver:true},
+    recepcion:{ver:true},
+    vehiculos:{ver:true,editar:true},
+    materiales:{ver:true},
+    inventario:{ver:true},
+    empleados:{ver:true},
+  }),
+
+  // Recepcionista: recepción + clientes + ver facturas
+  recepcionista:()=>({
+    dashboard:{ver:true},
+    recepcion:{ver:true,crear:true,editar:true},
+    clientes:{ver:true,crear:true,editar:true},
+    vehiculos:{ver:true,crear:true},
+    facturacion:{ver:true},
+    materiales:{ver:true},
+    inventario:{ver:true},
+  }),
+
+  // Operador personalizado — mínimo
+  operador:()=>({
+    dashboard:{ver:true},
+    recepcion:{ver:true,crear:true},
+    vehiculos:{ver:true,crear:true,editar:true},
+    clientes:{ver:true,crear:true},
+    materiales:{ver:true},
+    inventario:{ver:true},
+  }),
 };
-function uCanDo(mod,accion){if(!CU)return false;if(CU.rol==='admin')return true;const p=CU.permisos||{};return!!(p[mod]&&p[mod][accion]);}
+function uCanDo(mod,accion){if(!CU)return false;if(CU.rol==='admin'||CU.rol==='dueno')return true;const p=CU.permisos||{};return!!(p[mod]&&p[mod][accion]);}
 function uCanSee(mod){return uCanDo(mod,'ver');}
 function uApplyPreset(rol){
   const preset=PRESETS[rol];if(!preset)return;
