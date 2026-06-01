@@ -19,10 +19,8 @@
     appId: "1:871114095575:web:fb925b5a7e3af40dfce992"
   };
 
-  // Inicializar solo si no está ya inicializado
   if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
   const fsdb = firebase.firestore();
-
   window.FB_ONLINE = false;
   window._fsdb = fsdb;
 
@@ -33,211 +31,137 @@
     return JSON.parse(JSON.stringify(obj, (k,v)=>v===undefined?null:v));
   }
 
-  function getDB(){ return window.DB || {}; }
-
-  // ── Guardar un documento ──────────────────────────────────────────
   window.fbSaveDoc = async function(colName, item){
     if(!window.FB_ONLINE) return;
     try{
-      const id = String(item.id || item._fbId || Date.now());
-      await fsdb.collection(colName).doc(id).set(cleanObj(item), {merge:true});
-      const nxt = getDB().nxt;
-      if(nxt) await fsdb.collection('_meta').doc('nxt').set(cleanObj(nxt));
+      const id = String(item.id||item._fbId||Date.now());
+      await fsdb.collection(colName).doc(id).set(cleanObj(item),{merge:true});
+      if(window.DB?.nxt) await fsdb.collection('_meta').doc('nxt').set(cleanObj(window.DB.nxt));
     }catch(e){ console.error('fbSaveDoc',colName,e); }
   };
 
-  // ── Eliminar un documento ─────────────────────────────────────────
   window.fbDeleteDoc = async function(colName, id){
     if(!window.FB_ONLINE) return;
     try{ await fsdb.collection(colName).doc(String(id)).delete(); }catch(e){}
   };
 
-  // ── Guardar config ────────────────────────────────────────────────
   window.fbSaveConfig = async function(){
     if(!window.FB_ONLINE) return;
-    try{ await fsdb.collection('config').doc('main').set(cleanObj(getDB().config||{})); }catch(e){}
+    try{ await fsdb.collection('config').doc('main').set(cleanObj(window.DB?.config||{})); }catch(e){}
   };
 
-  // ── Cargar todos los datos de Firestore ──────────────────────────
+  // Cargar datos en objeto temporal para no pisar DB antes de que exista
   async function loadFromFirestore(){
-    // Guardar datos en objeto temporal — DB puede no existir aún
     window._fbData = {};
     try{
       for(const col of DB_COLS){
         const snap = await fsdb.collection(col).get();
         if(!snap.empty){
-          window._fbData[col] = snap.docs.map(d=>({...d.data(), _fbId:d.id}));
+          window._fbData[col] = snap.docs.map(d=>({...d.data(),_fbId:d.id}));
         }
       }
-      // config
       const cfgSnap = await fsdb.collection('config').doc('main').get();
       if(cfgSnap.exists) window._fbData._config = cfgSnap.data();
-      // nxt counters
       const nxtSnap = await fsdb.collection('_meta').doc('nxt').get();
       if(nxtSnap.exists) window._fbData._nxt = nxtSnap.data();
       window.FB_ONLINE = true;
-      console.log('Firestore cargado. Colecciones:', Object.keys(window._fbData).join(', '));
+      console.log('✅ Firebase cargado:', Object.keys(window._fbData).join(', '));
     }catch(e){
-      console.warn('Firestore no disponible, usando datos locales:', e.message);
+      console.warn('Firebase no disponible:', e.message);
       window.FB_ONLINE = false;
     }
-    // Aplicar a DB si ya existe, si no lo hará applyFbData() cuando DB esté listo
-    applyFbData();
   }
 
-  // ── Aplicar datos de Firestore a DB cuando esté disponible ────────
+  // Aplicar datos de Firestore a DB cuando DB esté lista
   function applyFbData(){
     const data = window._fbData;
     const db = window.DB;
     if(!data || !db) return;
     let applied = 0;
     for(const col of DB_COLS){
-      if(data[col] && data[col].length > 0){
-        db[col] = data[col];
-        applied++;
-      }
+      if(data[col]&&data[col].length>0){ db[col]=data[col]; applied++; }
     }
-    if(data._config) db.config = {...(db.config||{}), ...data._config};
-    if(data._nxt && db.nxt) Object.assign(db.nxt, data._nxt);
-    if(applied > 0){
-      console.log('✅ Firebase: aplicadas', applied, 'colecciones a DB');
-      // Si el usuario ya está logueado, re-renderizar el módulo activo
-      if(window.CU){
-        try{
-          const p = document.querySelector('.nav-item.active')?.getAttribute('data-page');
-          const map = {
-            dashboard: window.renderDashboard,
-            clientes: window.renderClients,
-            vehiculos: window.renderVeh,
-            facturacion: window.renderFact,
-            empleados: window.renderEmp,
-            suplidores: window.renderSup,
-            materiales: window.renderMateriales,
-            cxp: window.renderCXP,
-            caja: window.renderCaja,
-            recepcion: window.renderRecepcion,
-            bancos: window.renderBancos,
-            inventario: window.renderInventario,
-            usuarios: window.renderUsers,
-          };
-          if(p && map[p]) map[p]();
-          // Siempre actualizar dashboard
-          if(p !== 'dashboard' && window.renderDashboard) window.renderDashboard();
-        }catch(e){}
-      }
-    }
+    if(data._config) db.config={...(db.config||{}),...data._config};
+    if(data._nxt&&db.nxt) Object.assign(db.nxt,data._nxt);
+    if(applied>0) console.log('✅ Datos aplicados a DB:', applied, 'colecciones');
   }
-  // Exponer para que el script principal lo llame cuando DB esté lista
   window.applyFbData = applyFbData;
 
-  // ── Escuchar cambios en tiempo real (solo después de login) ──────
+  // Listeners en tiempo real (solo activos después del login)
   window.fbStartListeners = function(){
     DB_COLS.forEach(col=>{
       fsdb.collection(col).onSnapshot(snap=>{
-        // Actualizar TANTO window.DB como DB (son el mismo objeto pero por seguridad)
-        const arr = snap.docs.map(d=>({...d.data(), _fbId:d.id}));
-        // Solo actualizar si hay datos O si Firestore dice que está vacío
-        // (evitar sobreescribir con [] si Firestore aún no cargó)
-        if(window.DB) window.DB[col] = arr;
-        // Re-renderizar módulo activo Y dashboard siempre
+        if(!window.DB) return;
+        const arr = snap.docs.map(d=>({...d.data(),_fbId:d.id}));
+        if(arr.length>0) window.DB[col]=arr; // solo actualizar si hay datos
+        // Re-renderizar módulo activo
         try{
-          const p = document.querySelector('.nav-item.active')?.getAttribute('data-page');
-          const map = {
-            dashboard: window.renderDashboard,
-            vehiculos: window.renderVeh,
-            facturacion: window.renderFact,
-            clientes: window.renderClients,
-            empleados: window.renderEmp,
-            suplidores: window.renderSup,
-            materiales: window.renderMateriales,
-            cxp: window.renderCXP,
-            cxc: window.renderCXC,
-            caja: window.renderCaja,
-            recepcion: window.renderRecepcion,
-            bancos: ()=>{ window.renderBancos?.(); window.populateBancosSelects?.(); },
-            inventario: window.renderInventario,
-            bitacora: window.renderBitacora,
-            reportes: window.renderReportes,
-            usuarios: window.renderUsers,
+          const p=document.querySelector('.nav-item.active')?.getAttribute('data-page');
+          const renders={
+            dashboard:window.renderDashboard, vehiculos:window.renderVeh,
+            facturacion:window.renderFact, clientes:window.renderClients,
+            empleados:window.renderEmp, suplidores:window.renderSup,
+            materiales:window.renderMateriales, cxp:window.renderCXP,
+            caja:window.renderCaja, recepcion:window.renderRecepcion,
+            bancos:()=>{window.renderBancos?.();window.populateBancosSelects?.();},
+            inventario:window.renderInventario, usuarios:window.renderUsers,
           };
-          if(p && map[p]) map[p]();
-          // Si no estamos en dashboard, actualizar igual para los stats
-          if(p && p !== 'dashboard' && window.renderDashboard) window.renderDashboard();
-        }catch(e){ console.warn('render error after snapshot', col, e.message); }
-      }, err=>console.warn('listener error', col, err.message));
+          if(p&&renders[p]) renders[p]();
+          if(p!=='dashboard'&&window.renderDashboard) window.renderDashboard();
+        }catch(e){}
+      },err=>console.warn('listener error',col,err.message));
     });
   };
 
-  // ── Actualizar indicadores visuales ─────────────────────────────
-  function updateIndicators(online){
-    // Login badge
-    const lb = document.getElementById('loginFbBadge');
-    if(lb){
-      lb.style.display = 'inline-flex';
-      if(online){
-        lb.style.background='#f0fdf4';lb.style.border='1.5px solid #86efac';lb.style.color='#15803d';
-        lb.innerHTML='<span>✅</span>&nbsp;FIREBASE — EN LÍNEA';
-      } else {
-        lb.style.background='#fef9c3';lb.style.border='1.5px solid #fde047';lb.style.color='#a16207';
-        lb.innerHTML='<span>⚠️</span>&nbsp;Sin Firebase — Datos locales';
-      }
-    }
-    // Topbar indicator (se mostrará al hacer login)
-    window._fbOnline = online;
-  }
-
-  // ── Subir datos locales a Firestore si están vacíos ──────────────
   async function seedFirestoreIfEmpty(){
-    if(!window.DB || !window.FB_ONLINE) return;
+    if(!window.DB||!window.FB_ONLINE) return;
     for(const col of DB_COLS){
       const snap = await fsdb.collection(col).limit(1).get();
-      // Solo subir si Firestore está vacío Y DB tiene datos locales
-      const localData = window.DB[col];
-      if(snap.empty && Array.isArray(localData) && localData.length > 0){
-        console.log('Subiendo datos iniciales a Firestore:', col, localData.length, 'docs');
+      const local = window.DB[col];
+      if(snap.empty&&Array.isArray(local)&&local.length>0){
+        console.log('Subiendo a Firestore:', col, local.length, 'docs');
         const batch = fsdb.batch();
-        localData.forEach(item=>{
-          const id = String(item.id || item._fbId || Date.now());
-          batch.set(fsdb.collection(col).doc(id), cleanObj(item));
+        local.forEach(item=>{
+          const id=String(item.id||item._fbId||Date.now());
+          batch.set(fsdb.collection(col).doc(id),cleanObj(item));
         });
         await batch.commit();
-        console.log('Subido:', col);
       }
     }
-    // Subir nxt counters
     const nxtSnap = await fsdb.collection('_meta').doc('nxt').get();
-    if(!nxtSnap.exists && window.DB.nxt){
+    if(!nxtSnap.exists&&window.DB?.nxt)
       await fsdb.collection('_meta').doc('nxt').set(cleanObj(window.DB.nxt));
-    }
     console.log('Seed completado.');
   }
 
-  // ── Inicialización principal ─────────────────────────────────────
-  // Esperar a que el DOM y los scripts principales carguen
-  window.addEventListener('load', async function(){
-    await loadFromFirestore(); // carga datos en _fbData
-    // Aplicar a DB (puede que DB ya exista o no según el timing)
-    if(window.DB) applyFbData();
-    updateIndicators(window.FB_ONLINE);
-    if(window.FB_ONLINE){
-      await seedFirestoreIfEmpty();
-      // Aplicar de nuevo por si seed modificó datos
-      if(window.DB) applyFbData();
+  function updateLoginBadge(online){
+    const lb=document.getElementById('loginFbBadge');
+    if(!lb) return;
+    lb.style.display='inline-flex';
+    if(online){
+      lb.style.background='#f0fdf4';lb.style.border='1.5px solid #86efac';lb.style.color='#15803d';
+      lb.innerHTML='<span>✅</span>&nbsp;FIREBASE — EN LÍNEA';
+    } else {
+      lb.style.background='#fef9c3';lb.style.border='1.5px solid #fde047';lb.style.color='#a16207';
+      lb.innerHTML='<span>⚠️</span>&nbsp;Sin Firebase — Datos locales';
     }
-    // Si DB no existía aún, esperar y reintentar
+  }
+
+  window.addEventListener('load', async function(){
+    await loadFromFirestore();
+    updateLoginBadge(window.FB_ONLINE);
+    // Aplicar datos si DB ya existe
+    if(window.DB) applyFbData();
+    if(window.FB_ONLINE) await seedFirestoreIfEmpty();
+    // Retry por si DB no estaba lista aún
     if(!window.DB){
-      const retry = setInterval(()=>{
-        if(window.DB){
-          clearInterval(retry);
-          applyFbData();
-          updateIndicators(window.FB_ONLINE);
-        }
-      }, 100);
+      const t=setInterval(()=>{if(window.DB){clearInterval(t);applyFbData();}},100);
     }
   });
 
 })();
 </script>
+
 
 <style>
 :root{
@@ -1271,11 +1195,35 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
 
 <div id="toast"></div>
 <script>
-let DB={users:[{id:1,user:'admin',pass:'admin123',nombre:'Administrador',rol:'admin',modulos:['dashboard','vehiculos','facturacion','clientes','empleados','suplidores','caja','reportes','usuarios'],estado:'activo'},{id:2,user:'operador',pass:'op123',nombre:'Operador General',rol:'operador',modulos:['vehiculos','facturacion','clientes','caja'],estado:'activo'}],clientes:[{id:1,nombre:'KENUMAR AUTO IMPORT',rnc:'1231312313',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-777-7777',tel2:'829-123-4567'},{id:2,nombre:'ZYRLE AUTO',rnc:'',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-326-2222',tel2:''},{id:3,nombre:'ANDY & JULIAN AUTO',rnc:'',dir:'AUTOPISTA DUARTE KM 12',ciudad:'SANTIAGO',tel1:'8298300202',tel2:''},{id:4,nombre:'KENUAN AUTOSALE',rnc:'',dir:'AUTOPISTA DUARTE KM 13',ciudad:'SANTIAGO',tel1:'8292631406',tel2:''},{id:5,nombre:'RIVAS Y TAPIA AUTO',rnc:'',dir:'AUTOPISTA DUARTE',ciudad:'SANTIAGO',tel1:'8093086215',tel2:''},{id:6,nombre:'TESORO IMPORT',rnc:'',dir:'AUTOPISTA DUARTE KM 14',ciudad:'SANTIAGO',tel1:'8093539874',tel2:''},{id:7,nombre:'IMPORT INVERSIONES',rnc:'130377022',dir:'SANTO DOMINGO',ciudad:'SANTO DOMINGO',tel1:'8098385232',tel2:''},{id:8,nombre:'FAUSTO PEREZ',rnc:'',dir:'LA ZURZA',ciudad:'SANTIAGO',tel1:'8093605084',tel2:''}],empleados:[{id:1,nombre:'JUAN CARLOS MOREL',cargo:'PINTOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:2,nombre:'PEDRO MARTINEZ',cargo:'DESABOLLADOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:3,nombre:'CARLOS REYES',cargo:'PREPARADOR',tipo:'FIJO',tarifa:15000,tel:'',fecha:'2022-06-01',estado:'ACTIVO'}],suplidores:[{id:1,nombre:'FATI AUTO PINTURA',ncf:'131941915',dir:'CALLE COLON, 77',ciudad:'MOCA',tel1:'829-599-5020',tel2:''},{id:2,nombre:'REPUESTO LA PRESA',ncf:'',dir:'',ciudad:'',tel1:'',tel2:''}],vehiculos:[{id:1,chasis:'113155',vehiculo:'TOYOTA RAV4 NEGRO 14',clienteId:1,color:'NEGRO',fecha:'2024-01-15',monto:38000,montoPag:38000,estatus:'PENDIENTE',obs:'',piezas:{paint:['BONETE','CAPOTA'],dent:[],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Pintura completa vehículo',monto:8000,pagado:false}]},{id:2,chasis:'501889',vehiculo:'SUBARU FORESTER NEGRO 18',clienteId:4,color:'NEGRO PERLA',fecha:'2024-02-20',monto:17500,montoPag:17500,estatus:'EN PROCESO',obs:'',piezas:{paint:['BONETE','BUMPER TRAS.'],dent:['GUARDA LODO DEL. L'],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Bonete y bumper trasero',monto:5000,pagado:false},{empId:2,tipoTrabajo:'Desabolladura',desc:'Guarda lodo delantero L',monto:1800,pagado:true}]},{id:3,chasis:'7644724',vehiculo:'KIA SPORTAGE 19 BLANCO',clienteId:3,color:'BLANCO',fecha:'2024-04-18',monto:13000,montoPag:13000,estatus:'PARA ENTREGA',obs:'',piezas:{paint:[],dent:[],prep:[],brill:[]},ajustes:[]}],facturas:[{id:1,fecha:'2024-04-13',clienteId:8,vehiculo:'TOYOTA COROLLA AZUL 03',chasis:'30351',color:'',tipoVeh:'CARRO',items:[{desc:'PINTURA COMPLETA',ud:1,precio:50000},{desc:'RETROVISORES',ud:1,precio:12300}],subtotal:62300,itbis:0,aplicaItbis:false,dcto:0,total:62300,estatus:'PAGADO',obs:''},{id:2,fecha:'2024-04-20',clienteId:7,vehiculo:'SUBARU FORESTER NEGRO 18',chasis:'501889',color:'NEGRO PERLA',tipoVeh:'JEEP/SUV',items:[{desc:'BONETE',ud:1,precio:3500},{desc:'BUMPER TRASERO',ud:1,precio:3500},{desc:'RETROVISORES',ud:1,precio:3500}],subtotal:10500,itbis:1890,aplicaItbis:true,dcto:0,total:12390,estatus:'PENDIENTE',obs:'BASE ESPEJO BMW'}],caja:[{id:1,fecha:'2024-03-10',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'ABONO FACTURAS FATI',factura:'3236',mover:'SALIDA',moneda:'PESOS',monto:50000,estatus:'PAGADO',persona:'FATI AUTO PINTURA'},{id:2,fecha:'2024-04-23',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'MATERIALES PINTURA',factura:'41479',mover:'ENTRADA',moneda:'PESOS',monto:16965,estatus:'POR PAGAR',persona:'FATI AUTO PINTURA'},{id:3,fecha:'2024-04-24',tipo:'EFECTIVO',cuenta:'CAJA FUERTE EN PESOS',desc:'COBRO CLIENTE FAUSTO',factura:'0001',mover:'ENTRADA',moneda:'PESOS',monto:62300,estatus:'COBRADO',persona:'FAUSTO PEREZ'}],nxt:{v:4,f:3,c:9,e:4,s:3,cj:4,u:3}};
-window.DB=DB; // sincronizar con Firebase
-// Aplicar datos de Firestore si ya cargaron (Firebase puede haber terminado antes)
+window.DB=window.DB||{};let DB={users:[{id:1,user:'admin',pass:'admin123',nombre:'Administrador',rol:'admin',modulos:['dashboard','vehiculos','facturacion','clientes','empleados','suplidores','caja','reportes','usuarios'],estado:'activo'},{id:2,user:'operador',pass:'op123',nombre:'Operador General',rol:'operador',modulos:['vehiculos','facturacion','clientes','caja'],estado:'activo'}],clientes:[{id:1,nombre:'KENUMAR AUTO IMPORT',rnc:'1231312313',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-777-7777',tel2:'829-123-4567'},{id:2,nombre:'ZYRLE AUTO',rnc:'',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-326-2222',tel2:''},{id:3,nombre:'ANDY & JULIAN AUTO',rnc:'',dir:'AUTOPISTA DUARTE KM 12',ciudad:'SANTIAGO',tel1:'8298300202',tel2:''},{id:4,nombre:'KENUAN AUTOSALE',rnc:'',dir:'AUTOPISTA DUARTE KM 13',ciudad:'SANTIAGO',tel1:'8292631406',tel2:''},{id:5,nombre:'RIVAS Y TAPIA AUTO',rnc:'',dir:'AUTOPISTA DUARTE',ciudad:'SANTIAGO',tel1:'8093086215',tel2:''},{id:6,nombre:'TESORO IMPORT',rnc:'',dir:'AUTOPISTA DUARTE KM 14',ciudad:'SANTIAGO',tel1:'8093539874',tel2:''},{id:7,nombre:'IMPORT INVERSIONES',rnc:'130377022',dir:'SANTO DOMINGO',ciudad:'SANTO DOMINGO',tel1:'8098385232',tel2:''},{id:8,nombre:'FAUSTO PEREZ',rnc:'',dir:'LA ZURZA',ciudad:'SANTIAGO',tel1:'8093605084',tel2:''}],empleados:[{id:1,nombre:'JUAN CARLOS MOREL',cargo:'PINTOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:2,nombre:'PEDRO MARTINEZ',cargo:'DESABOLLADOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:3,nombre:'CARLOS REYES',cargo:'PREPARADOR',tipo:'FIJO',tarifa:15000,tel:'',fecha:'2022-06-01',estado:'ACTIVO'}],suplidores:[{id:1,nombre:'FATI AUTO PINTURA',ncf:'131941915',dir:'CALLE COLON, 77',ciudad:'MOCA',tel1:'829-599-5020',tel2:''},{id:2,nombre:'REPUESTO LA PRESA',ncf:'',dir:'',ciudad:'',tel1:'',tel2:''}],vehiculos:[{id:1,chasis:'113155',vehiculo:'TOYOTA RAV4 NEGRO 14',clienteId:1,color:'NEGRO',fecha:'2024-01-15',monto:38000,montoPag:38000,estatus:'PENDIENTE',obs:'',piezas:{paint:['BONETE','CAPOTA'],dent:[],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Pintura completa vehículo',monto:8000,pagado:false}]},{id:2,chasis:'501889',vehiculo:'SUBARU FORESTER NEGRO 18',clienteId:4,color:'NEGRO PERLA',fecha:'2024-02-20',monto:17500,montoPag:17500,estatus:'EN PROCESO',obs:'',piezas:{paint:['BONETE','BUMPER TRAS.'],dent:['GUARDA LODO DEL. L'],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Bonete y bumper trasero',monto:5000,pagado:false},{empId:2,tipoTrabajo:'Desabolladura',desc:'Guarda lodo delantero L',monto:1800,pagado:true}]},{id:3,chasis:'7644724',vehiculo:'KIA SPORTAGE 19 BLANCO',clienteId:3,color:'BLANCO',fecha:'2024-04-18',monto:13000,montoPag:13000,estatus:'PARA ENTREGA',obs:'',piezas:{paint:[],dent:[],prep:[],brill:[]},ajustes:[]}],facturas:[{id:1,fecha:'2024-04-13',clienteId:8,vehiculo:'TOYOTA COROLLA AZUL 03',chasis:'30351',color:'',tipoVeh:'CARRO',items:[{desc:'PINTURA COMPLETA',ud:1,precio:50000},{desc:'RETROVISORES',ud:1,precio:12300}],subtotal:62300,itbis:0,aplicaItbis:false,dcto:0,total:62300,estatus:'PAGADO',obs:''},{id:2,fecha:'2024-04-20',clienteId:7,vehiculo:'SUBARU FORESTER NEGRO 18',chasis:'501889',color:'NEGRO PERLA',tipoVeh:'JEEP/SUV',items:[{desc:'BONETE',ud:1,precio:3500},{desc:'BUMPER TRASERO',ud:1,precio:3500},{desc:'RETROVISORES',ud:1,precio:3500}],subtotal:10500,itbis:1890,aplicaItbis:true,dcto:0,total:12390,estatus:'PENDIENTE',obs:'BASE ESPEJO BMW'}],caja:[{id:1,fecha:'2024-03-10',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'ABONO FACTURAS FATI',factura:'3236',mover:'SALIDA',moneda:'PESOS',monto:50000,estatus:'PAGADO',persona:'FATI AUTO PINTURA'},{id:2,fecha:'2024-04-23',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'MATERIALES PINTURA',factura:'41479',mover:'ENTRADA',moneda:'PESOS',monto:16965,estatus:'POR PAGAR',persona:'FATI AUTO PINTURA'},{id:3,fecha:'2024-04-24',tipo:'EFECTIVO',cuenta:'CAJA FUERTE EN PESOS',desc:'COBRO CLIENTE FAUSTO',factura:'0001',mover:'ENTRADA',moneda:'PESOS',monto:62300,estatus:'COBRADO',persona:'FAUSTO PEREZ'}],nxt:{v:4,f:3,c:9,e:4,s:3,cj:4,u:3,banco:3,mat:1,rp:1,cxp:1},
+materiales:[
+  {id:1,nombre:'PINTURA BASE',categoria:'Pintura',costo:2500,stock:10,suplidor:'FATI AUTO PINTURA',fecha:'2024-01-15'},
+  {id:2,nombre:'LIJA 220',categoria:'Preparación',costo:85,stock:50,suplidor:'FATI AUTO PINTURA',fecha:'2024-01-15'},
+  {id:3,nombre:'THINNER',categoria:'Pintura',costo:450,stock:20,suplidor:'FATI AUTO PINTURA',fecha:'2024-01-15'}
+],
+bancos:[
+  {id:1,banco:'BANRESERVAS',numCuenta:'001-123456-7',tipo:'CORRIENTE',moneda:'PESOS',titular:'ROGASEV MULTISERVICE'},
+  {id:2,banco:'BHD LEON',numCuenta:'27500001234',tipo:'AHORROS',moneda:'PESOS',titular:'ROGASEV MULTISERVICE'}
+],
+cxp:[
+  {id:1,suplidor:'FATI AUTO PINTURA',concepto:'MATERIALES PINTURA ENE-2024',monto:15000,vence:'2024-02-15',estado:'PENDIENTE',tipo:'PROVEEDOR'}
+],
+recepciones:[],
+kardex:[],
+bitacora:[]};
+// Inicializar arrays que pueden faltar
+if(!DB.materiales) DB.materiales=[];
+if(!DB.bancos) DB.bancos=[];
+if(!DB.cxp) DB.cxp=[];
+if(!DB.recepciones) DB.recepciones=[];
+if(!DB.kardex) DB.kardex=[];
+if(!DB.bitacora) DB.bitacora=[];
+if(!DB.nxt.banco) DB.nxt.banco=1;
+if(!DB.nxt.mat) DB.nxt.mat=1;
+if(!DB.nxt.rp) DB.nxt.rp=1;
+if(!DB.nxt.cxp) DB.nxt.cxp=1;
+window.DB=DB; // sincronizar — misma referencia
 if(window.applyFbData) window.applyFbData();
-else window._dbReady=true; // señal para que applyFbData corra cuando Firebase termine
 let CU=null,editId={v:null,f:null,c:null,e:null,s:null,cj:null,u:null};
 
 // ── Control de permisos ──────────────────────────────────────────────
@@ -1380,29 +1328,41 @@ function closeWelcome(){
   document.getElementById('sidebarRole').textContent=rolLabels[CU.rol]||CU.rol;
   document.getElementById('sidebarAvatar').textContent=CU.nombre[0].toUpperCase();
   applyPerms();
-  // Asegurar que los datos de Firestore estén aplicados antes de renderizar
+  // Aplicar datos de Firebase antes de renderizar
   if(window.applyFbData) window.applyFbData();
+  // Mostrar indicador Firebase en topbar
+  const ind=document.getElementById('fbIndicator');
+  if(ind){
+    ind.style.display='flex';
+    if(window.FB_ONLINE){
+      ind.style.background='#f0fdf4';ind.style.border='1.5px solid #86efac';ind.style.color='#15803d';
+      ind.innerHTML='<span style="font-size:.85rem;">✅</span> FIREBASE <span style="font-size:.67rem;background:#dcfce7;border-radius:10px;padding:1px 6px;margin-left:2px;">EN LÍNEA</span>';
+    }else{
+      ind.style.background='#fef9c3';ind.style.border='1.5px solid #fde047';ind.style.color='#a16207';
+      ind.innerHTML='<span>⚠️</span> Datos Locales';
+    }
+  }
+  // Iniciar listeners en tiempo real
+  if(window.FB_ONLINE&&window.fbStartListeners) window.fbStartListeners();
   renderDashboard();
 }
 
-// ── Exponer funciones de render para el listener de Firebase ────────
-window.renderVeh = function(){ try{ renderVeh(); }catch(e){} };
-window.renderFact = function(){ try{ renderFact(); }catch(e){} };
-window.renderClients = function(){ try{ renderClients(); }catch(e){} };
-window.renderEmp = function(){ try{ renderEmp(); }catch(e){} };
-window.renderSup = function(){ try{ renderSup(); }catch(e){} };
-window.renderMateriales = function(){ try{ renderMateriales(); }catch(e){} };
-window.renderCXP = function(){ try{ renderCXP(); }catch(e){} };
-window.renderCXC = function(){ try{ renderCXC(); }catch(e){} };
-window.renderCaja = function(){ try{ renderCaja(); }catch(e){} };
-window.renderRecepcion = function(){ try{ renderRecepcion(); }catch(e){} };
-window.renderBancos = function(){ try{ renderBancos(); populateBancosSelects(); }catch(e){} };
-window.renderInventario = function(){ try{ renderInventario(); }catch(e){} };
-window.renderBitacora = function(){ try{ renderBitacora(); }catch(e){} };
-window.renderReportes = function(){ try{ renderReportes(); }catch(e){} };
-window.renderUsers = function(){ try{ renderUsers(); }catch(e){} };
-window.renderDashboard = function(){ try{ renderDashboard(); }catch(e){} };
-window.populateBancosSelects = function(){ try{ populateBancosSelects(); }catch(e){} };
+// Exponer funciones de render para el listener de Firebase
+window.renderVeh = function(){ try{renderVeh();}catch(e){} };
+window.renderFact = function(){ try{renderFact();}catch(e){} };
+window.renderClients = function(){ try{renderClients();}catch(e){} };
+window.renderEmp = function(){ try{renderEmp();}catch(e){} };
+window.renderSup = function(){ try{renderSup();}catch(e){} };
+window.renderMateriales = function(){ try{renderMateriales();}catch(e){} };
+window.renderCXP = function(){ try{renderCXP();}catch(e){} };
+window.renderCXC = function(){ try{renderCXC();}catch(e){} };
+window.renderCaja = function(){ try{renderCaja();}catch(e){} };
+window.renderRecepcion = function(){ try{renderRecepcion();}catch(e){} };
+window.renderBancos = function(){ try{renderBancos();populateBancosSelects();}catch(e){} };
+window.renderInventario = function(){ try{renderInventario();}catch(e){} };
+window.renderUsers = function(){ try{renderUsers();}catch(e){} };
+window.renderDashboard = function(){ try{renderDashboard();}catch(e){} };
+window.populateBancosSelects = function(){ try{populateBancosSelects();}catch(e){} };
 
 function doLogout(){CU=null;document.getElementById('mainApp').style.display='none';document.getElementById('loginScreen').style.display='flex';['loginUser','loginPass'].forEach(id=>document.getElementById(id).value='');document.getElementById('loginError').style.display='none';const fbInd=document.getElementById('fbIndicator');if(fbInd)fbInd.style.display='none';}
 function applyPerms(){const a=CU.rol==='admin';document.querySelectorAll('.admin-only').forEach(el=>el.style.display=a?'':'none');document.querySelectorAll('.nav-item[data-page]').forEach(el=>{const p=el.getAttribute('data-page');el.style.display=(p==='dashboard'||a||CU.modulos.includes(p))?'flex':'none';});}
@@ -1410,14 +1370,18 @@ function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classLis
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function toast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=type;t.style.display='block';setTimeout(()=>t.style.display='none',2800);}
-function renderDashboard(){const enP=DB.vehiculos.filter(v=>v.estatus==='EN PROCESO').length;const pE=DB.vehiculos.filter(v=>v.estatus==='PARA ENTREGA').length;const cxc=DB.vehiculos.reduce((a,v)=>a+(v.monto-(v.montoPag||0)),0);const bal=DB.caja.filter(c=>c.mover==='ENTRADA').reduce((a,c)=>a+c.monto,0)-DB.caja.filter(c=>c.mover==='SALIDA').reduce((a,c)=>a+c.monto,0);const ajP=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>!aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);
+function renderDashboard(){
+  try{
+  if(!DB.vehiculos||!DB.caja||!DB.facturas){setTimeout(renderDashboard,300);return;}
+  const enP=DB.vehiculos.filter(v=>v.estatus==='EN PROCESO').length;const pE=DB.vehiculos.filter(v=>v.estatus==='PARA ENTREGA').length;const cxc=DB.vehiculos.reduce((a,v)=>a+(v.monto-(v.montoPag||0)),0);const bal=DB.caja.filter(c=>c.mover==='ENTRADA').reduce((a,c)=>a+c.monto,0)-DB.caja.filter(c=>c.mover==='SALIDA').reduce((a,c)=>a+c.monto,0);const ajP=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>!aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);
 const hoy=new Date().toISOString().split('T')[0];
 const ventasHoy=DB.facturas.filter(f=>f.fecha===hoy).reduce((a,f)=>a+f.total,0);
 const gananciaBruta=DB.vehiculos.reduce((a,v)=>a+(v.monto-v.ajustes.reduce((b,aj)=>b+aj.monto,0)),0);
 const matCost=DB.materiales.reduce((a,m)=>a+(m.costo*((m.stockInicial||m.stock+10)-m.stock)),0);
 const techDebt=ajP;
 document.getElementById('statsGrid').innerHTML=`<div class="stat-card red"><div class="stat-icon">⚙️</div><div class="stat-value">${enP}</div><div class="stat-label">En Proceso</div></div><div class="stat-card blue"><div class="stat-icon">🚗</div><div class="stat-value">${pE}</div><div class="stat-label">Para Entrega</div></div><div class="stat-card orange"><div class="stat-icon">💳</div><div class="stat-value">${fmt(cxc)}</div><div class="stat-label">Por Cobrar</div></div><div class="stat-card green"><div class="stat-icon">💰</div><div class="stat-value">${fmt(bal)}</div><div class="stat-label">Balance Caja</div></div><div class="stat-card purple"><div class="stat-icon">👷</div><div class="stat-value">${fmt(techDebt)}</div><div class="stat-label">Deuda Técnicos</div></div><div class="stat-card blue"><div class="stat-icon">📈</div><div class="stat-value">${fmt(ventasHoy||DB.facturas.slice(-1)[0]?.total||0)}</div><div class="stat-label">Última Factura</div></div><div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${fmt(gananciaBruta)}</div><div class="stat-label">Ganancia Bruta</div></div>`;const sM={ENTREGADO:'success','EN PROCESO':'info','PARA ENTREGA':'warning',PENDIENTE:'danger'};document.getElementById('dashWork').innerHTML=DB.vehiculos.slice(-5).reverse().map(v=>{const cl=DB.clientes.find(c=>c.id===v.clienteId);return`<tr><td class="fw-600" style="font-size:.82rem;">${v.vehiculo}</td><td style="font-size:.8rem;">${cl?.nombre||'-'}</td><td><span class="badge badge-${sM[v.estatus]||'info'}">${v.estatus}</span></td><td class="fw-600">${fmt(v.monto)}</td></tr>`;}).join('');const recentBit=DB.bitacora?DB.bitacora.slice(0,6):[];const colsBit={ORDEN:'badge-info',FACTURA:'badge-success',CLIENTE:'badge-secondary',EMPLEADO:'badge-purple',CAJA:'badge-warning',USUARIO:'badge-primary',AJUSTE:'badge-danger'};if(document.getElementById('dashBitacora'))document.getElementById('dashBitacora').innerHTML=recentBit.length?recentBit.map(b=>`<tr><td style="font-size:.76rem;white-space:nowrap;">${b.ts}</td><td style="font-size:.78rem;">${b.user}</td><td><span class="badge ${colsBit[b.modulo]||'badge-info'}" style="font-size:.67rem;">${b.modulo}</span></td><td style="font-size:.8rem;">${b.accion}</td><td style="font-size:.78rem;color:var(--text2);">${b.detalle}</td></tr>`).join(''):'<tr><td colspan="5" class="text-center" style="padding:12px;color:var(--text2);font-size:.82rem;">Sin eventos aún</td></tr>';
-document.getElementById('dashCxc').innerHTML=DB.vehiculos.filter(v=>(v.monto-(v.montoPag||0))>0).map(v=>{const cl=DB.clientes.find(c=>c.id===v.clienteId);return`<tr><td style="font-size:.8rem;">${cl?.nombre||'-'}</td><td style="font-size:.78rem;">${v.vehiculo}</td><td class="fw-600 text-danger">${fmt(v.monto-(v.montoPag||0))}</td></tr>`;}).join('')||'<tr><td colspan="3" class="text-center" style="color:var(--success);padding:12px;">✅ Sin pendientes</td></tr>';}
+document.getElementById('dashCxc').innerHTML=DB.vehiculos.filter(v=>(v.monto-(v.montoPag||0))>0).map(v=>{const cl=DB.clientes.find(c=>c.id===v.clienteId);return`<tr><td style="font-size:.8rem;">${cl?.nombre||'-'}</td><td style="font-size:.78rem;">${v.vehiculo}</td><td class="fw-600 text-danger">${fmt(v.monto-(v.montoPag||0))}</td></tr>`;}).join('')||'<tr><td colspan="3" class="text-center" style="color:var(--success);padding:12px;">✅ Sin pendientes</td></tr>';
+  }catch(e){console.error('Dashboard error:',e);}}
 function renderPartsGrid(){document.getElementById('partsGrid').innerHTML=PARTS.map(p=>{const c=selParts.paint.includes(p)?'sel-paint':selParts.dent.includes(p)?'sel-dent':selParts.prep.includes(p)?'sel-prep':selParts.brill.includes(p)?'sel-brill':'';return`<div class="part-item ${c}" onclick="togglePart('${p}')" data-part="${p}"><div class="pchk"></div>${p}</div>`;}).join('');}
 function setWT(t,el){curWT=t;document.querySelectorAll('.diagram-tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');renderPartsGrid();}
 function togglePart(p){
@@ -4574,23 +4538,50 @@ function saveBanco(){
   if(!DB.bancos) DB.bancos=[];
   if(editId_banco.b){obj.id=editId_banco.b;DB.bancos[DB.bancos.findIndex(x=>x.id===editId_banco.b)]=obj;toast('Cuenta actualizada ✓');}
   else{obj.id=DB.nxt.banco++;DB.bancos.push(obj);toast('Cuenta guardada ✓');}
-  window.fbSaveDoc?.('bancos', obj);
-  logBit?.('BANCOS', editId_banco.b?'Cuenta editada':'Cuenta creada', `${obj.banco} — ${obj.numCuenta}`);
+  window.fbSaveDoc?.('bancos',obj);
   closeModal('bancoModal');
   renderBancos();
   populateBancosSelects();
 }
 
-function delBanco(id){
-  confirm2('¿Eliminar esta cuenta bancaria?',function(ok){
-    if(!ok) return;
-    DB.bancos = DB.bancos.filter(x=>x.id!==id);
-    window.fbDeleteDoc?.('bancos', id);
-    logBit?.('BANCOS','Cuenta eliminada',`ID: ${id}`);
-    renderBancos();
-    populateBancosSelects();
-    toast('Cuenta eliminada','info');
-  });
+function delBanco(id){confirm2('¿Eliminar cuenta bancaria?',ok=>{if(!ok)return;DB.bancos=(DB.bancos||[]).filter(x=>x.id!==id);window.fbDeleteDoc?.('bancos',id);renderBancos();populateBancosSelects();toast('Eliminada','info');});}
+
+// ═══════════════════════════════════════
+// MATERIALES — actualizado con cuenta bancaria y no cierra en misma OC
+// ═══════════════════════════════════════
+let matOcItems=[]; // lista de materiales de la OC actual
+
+function openMatModal(id=null){
+  editId_mat.m = id;
+  matOcItems=[];
+  document.getElementById('matModalTitle').textContent = id ? 'Editar Material' : 'Nuevo Material';
+  const sel = document.getElementById('mSuplidor');
+  if(sel) sel.innerHTML = '<option value="">Sin suplidor</option>' + DB.suplidores.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('');
+  ['mNombre','mCosto','mStock','mCantidad','mRef'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  const fechaEl=document.getElementById('mFecha');
+  if(fechaEl) fechaEl.value=new Date().toISOString().split('T')[0];
+  const rb=document.getElementById('mPagoContado');
+  if(rb) rb.checked=true;
+  const cf=document.getElementById('mCreditoFields');
+  if(cf) cf.style.display='none';
+  const cuentaF=document.getElementById('mCuentaFields');
+  if(cuentaF) cuentaF.style.display='block';
+  const tc=document.getElementById('mTotalCalc');
+  if(tc) tc.textContent='RD$ 0';
+  populateBancosSelects();
+  if(id){
+    const m=DB.materiales.find(x=>x.id===id);
+    if(m){
+      document.getElementById('mNombre').value=m.nombre||'';
+      document.getElementById('mCategoria').value=m.categoria||'Pintura';
+      document.getElementById('mCosto').value=m.costo||'';
+      document.getElementById('mStock').value=m.stock||'';
+      if(fechaEl) fechaEl.value=m.fecha||new Date().toISOString().split('T')[0];
+    }
+  }
+  const ocCont=document.getElementById('mOcListContainer');
+  if(ocCont) ocCont.style.display='none';
+  openModal('matModal');
 }
 
 function mTogglePago(){
