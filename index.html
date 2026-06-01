@@ -89,16 +89,43 @@
   function applyFbData(){
     const data = window._fbData;
     const db = window.DB;
-    if(!data || !db) return; // DB no está lista todavía
+    if(!data || !db) return;
+    let applied = 0;
     for(const col of DB_COLS){
       if(data[col] && data[col].length > 0){
         db[col] = data[col];
-        console.log('Aplicado:', col, data[col].length, 'docs');
+        applied++;
       }
     }
     if(data._config) db.config = {...(db.config||{}), ...data._config};
-    if(data._nxt) Object.assign(db.nxt, data._nxt);
-    console.log('✅ Datos Firestore aplicados a DB correctamente');
+    if(data._nxt && db.nxt) Object.assign(db.nxt, data._nxt);
+    if(applied > 0){
+      console.log('✅ Firebase: aplicadas', applied, 'colecciones a DB');
+      // Si el usuario ya está logueado, re-renderizar el módulo activo
+      if(window.CU){
+        try{
+          const p = document.querySelector('.nav-item.active')?.getAttribute('data-page');
+          const map = {
+            dashboard: window.renderDashboard,
+            clientes: window.renderClients,
+            vehiculos: window.renderVeh,
+            facturacion: window.renderFact,
+            empleados: window.renderEmp,
+            suplidores: window.renderSup,
+            materiales: window.renderMateriales,
+            cxp: window.renderCXP,
+            caja: window.renderCaja,
+            recepcion: window.renderRecepcion,
+            bancos: window.renderBancos,
+            inventario: window.renderInventario,
+            usuarios: window.renderUsers,
+          };
+          if(p && map[p]) map[p]();
+          // Siempre actualizar dashboard
+          if(p !== 'dashboard' && window.renderDashboard) window.renderDashboard();
+        }catch(e){}
+      }
+    }
   }
   // Exponer para que el script principal lo llame cuando DB esté lista
   window.applyFbData = applyFbData;
@@ -188,12 +215,24 @@
   // ── Inicialización principal ─────────────────────────────────────
   // Esperar a que el DOM y los scripts principales carguen
   window.addEventListener('load', async function(){
-    await loadFromFirestore(); // carga en _fbData y llama applyFbData
-    // Si DB ya estaba lista (script principal corrió primero), aplicar ahora
-    if(window.DB && window._fbData) applyFbData();
+    await loadFromFirestore(); // carga datos en _fbData
+    // Aplicar a DB (puede que DB ya exista o no según el timing)
+    if(window.DB) applyFbData();
     updateIndicators(window.FB_ONLINE);
     if(window.FB_ONLINE){
       await seedFirestoreIfEmpty();
+      // Aplicar de nuevo por si seed modificó datos
+      if(window.DB) applyFbData();
+    }
+    // Si DB no existía aún, esperar y reintentar
+    if(!window.DB){
+      const retry = setInterval(()=>{
+        if(window.DB){
+          clearInterval(retry);
+          applyFbData();
+          updateIndicators(window.FB_ONLINE);
+        }
+      }, 100);
     }
   });
 
@@ -1329,9 +1368,22 @@ document.getElementById('wRole').textContent=wRolLabels[found.rol]||found.rol;
   // Iniciar listeners en tiempo real después del login
   if(window.FB_ONLINE && window.fbStartListeners) window.fbStartListeners();
 }
-function closeWelcome(){document.getElementById('welcomeModal').style.display='none';document.getElementById('mainApp').style.display='block';setTimeout(applyLogoEverywhere,50);document.getElementById('sidebarUser').textContent=CU.nombre;logBit('USUARIO','Inicio de sesión',`${CU.nombre} (${CU.rol})`);const rolLabels={admin:'Administrador',dueno:'Dueño',secretaria:'Secretaria',
-  pintor:'Pintor',desabollador:'Desabollador',tecnico:'Técnico',recepcionista:'Recepcionista',operador:'Operador'};
-document.getElementById('sidebarRole').textContent=rolLabels[CU.rol]||CU.rol;document.getElementById('sidebarAvatar').textContent=CU.nombre[0].toUpperCase();applyPerms();renderDashboard();}
+function closeWelcome(){
+  document.getElementById('welcomeModal').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  setTimeout(applyLogoEverywhere,50);
+  document.getElementById('sidebarUser').textContent=CU.nombre;
+  logBit('USUARIO','Inicio de sesión',`${CU.nombre} (${CU.rol})`);
+  const rolLabels={admin:'Administrador',dueno:'Dueño',secretaria:'Secretaria',
+    pintor:'Pintor',desabollador:'Desabollador',tecnico:'Técnico',
+    recepcionista:'Recepcionista',operador:'Operador'};
+  document.getElementById('sidebarRole').textContent=rolLabels[CU.rol]||CU.rol;
+  document.getElementById('sidebarAvatar').textContent=CU.nombre[0].toUpperCase();
+  applyPerms();
+  // Asegurar que los datos de Firestore estén aplicados antes de renderizar
+  if(window.applyFbData) window.applyFbData();
+  renderDashboard();
+}
 
 // ── Exponer funciones de render para el listener de Firebase ────────
 window.renderVeh = function(){ try{ renderVeh(); }catch(e){} };
