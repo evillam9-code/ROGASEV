@@ -1194,7 +1194,18 @@ let CU=null,editId={v:null,f:null,c:null,e:null,s:null,cj:null,u:null};
 function canDo(accion){
   if(!CU) return false;
   if(CU.rol==='admin') return true; // solo admin tiene acceso total
-  return (CU.permisos||[]).includes(accion);
+  // Verificar array simple de permisos (perm_editar, perm_borrar, etc.)
+  const simplePerms = Array.isArray(CU.permisos) ? CU.permisos : [];
+  if(simplePerms.includes(accion)) return true;
+  // Compatibilidad: verificar objeto granular si existe
+  const granular = CU.permisosGranulares || {};
+  const mapaGranular = {
+    perm_editar: ()=>Object.values(granular).some(m=>m.editar),
+    perm_borrar: ()=>Object.values(granular).some(m=>m.borrar),
+    perm_cobrar: ()=>granular.facturacion?.crear || granular.caja?.crear,
+    perm_pagar:  ()=>granular.cxp?.editar || granular.caja?.crear,
+  };
+  return mapaGranular[accion]?.() || false;
 }
 function canEdit(){ return canDo('perm_editar'); }
 function canDelete(){ return canDo('perm_borrar'); }
@@ -1234,6 +1245,18 @@ function doLogin(){
     return;
   }
   CU=found;
+  // Normalizar permisos para compatibilidad total
+  // Si permisos es objeto (legacy), convertir a array simple
+  if(CU.permisos && !Array.isArray(CU.permisos)){
+    const p=CU.permisos;
+    CU.permisosGranulares = p;
+    CU.permisos = [
+      ...(Object.values(p).some(m=>m?.editar)?['perm_editar']:[]),
+      ...(Object.values(p).some(m=>m?.borrar)?['perm_borrar']:[]),
+      ...((p.facturacion?.crear||p.caja?.crear)?['perm_cobrar']:[]),
+      ...((p.cxp?.editar||p.caja?.crear)?['perm_pagar']:[]),
+    ];
+  }
   document.getElementById('loginScreen').style.display='none';
   const wm=document.getElementById('welcomeModal');
   wm.style.display='flex';
@@ -1724,12 +1747,21 @@ function renderUsers(){
       recepcionista:'📋 Recepcionista',operador:'⚙️ Operador'};
     const mods=isAdmin?'<span class="badge badge-success" style="font-size:.68rem;">Todos los módulos</span>':
       (u.modulos||[]).filter(x=>x!=='dashboard').map(m=>`<span class="badge badge-info" style="margin:1px;font-size:.65rem;">${m}</span>`).join('');
+    // u.permisos puede ser array simple o (legacy) objeto — normalizar
+    const permsArr = Array.isArray(u.permisos) ? u.permisos :
+      // si es objeto granular, derivar permisos simples
+      (u.permisos && typeof u.permisos === 'object' ?
+        [...(Object.values(u.permisos).some(m=>m?.editar)?['perm_editar']:[]),
+         ...(Object.values(u.permisos).some(m=>m?.borrar)?['perm_borrar']:[]),
+         ...((u.permisos.facturacion?.crear||u.permisos.caja?.crear)?['perm_cobrar']:[]),
+         ...((u.permisos.cxp?.editar||u.permisos.caja?.crear)?['perm_pagar']:[])
+        ] : []);
     const perms=isAdmin?'<span class="badge badge-success" style="font-size:.68rem;">Todos los permisos</span>':
-      (u.permisos||[]).length?
-      (u.permisos.includes('perm_editar')?'<span class="badge badge-info" style="font-size:.65rem;margin:1px;">✏️ Editar</span>':'')+
-      (u.permisos.includes('perm_borrar')?'<span class="badge badge-danger" style="font-size:.65rem;margin:1px;">🗑️ Borrar</span>':'')+
-      (u.permisos.includes('perm_cobrar')?'<span class="badge badge-success" style="font-size:.65rem;margin:1px;">💰 Cobrar</span>':'')+
-      (u.permisos.includes('perm_pagar')?'<span class="badge badge-warning" style="font-size:.65rem;margin:1px;">💳 Pagar</span>':''):
+      permsArr.length?
+      (permsArr.includes('perm_editar')?'<span class="badge badge-info" style="font-size:.65rem;margin:1px;">✏️ Editar</span>':'')+
+      (permsArr.includes('perm_borrar')?'<span class="badge badge-danger" style="font-size:.65rem;margin:1px;">🗑️ Borrar</span>':'')+
+      (permsArr.includes('perm_cobrar')?'<span class="badge badge-success" style="font-size:.65rem;margin:1px;">💰 Cobrar</span>':'')+
+      (permsArr.includes('perm_pagar')?'<span class="badge badge-warning" style="font-size:.65rem;margin:1px;">💳 Pagar</span>':''):
       '<span style="color:var(--text2);font-size:.75rem;">Solo lectura</span>';
     return`<tr>
       <td>${u.id}</td>
@@ -1788,21 +1820,40 @@ function saveUser(){
   const isAdmin=rol==='admin';
   const ALL_MODS=['dashboard','vehiculos','recepcion','facturacion','clientes','empleados',
     'suplidores','materiales','inventario','cxp','caja','bancos','reportes','config','bitacora','usuarios'];
-  const isFullAccess=isAdmin; // solo admin tiene acceso total automático
+  const isFullAccess=isAdmin;
   const mods=isFullAccess?ALL_MODS:[...document.querySelectorAll('#modulesCheck input:checked')].map(cb=>cb.value);
-  const perms=isFullAccess?['perm_editar','perm_borrar','perm_cobrar','perm_pagar']:
+
+  // ── Permisos simples (para canDo / canEdit / canDelete) ──────────
+  const permsSimple=isFullAccess?['perm_editar','perm_borrar','perm_cobrar','perm_pagar']:
     [...document.querySelectorAll('#permisosCheck input:checked')].map(cb=>cb.value);
+
+  // ── Permisos granulares (para uCanDo / uCanSee / navegación) ────
+  const permsGranular=isFullAccess
+    ? (()=>{const p={};MODULOS_PERMS.forEach(m=>{p[m.key]={};m.acciones.forEach(a=>p[m.key][a]=true);});return p;})()
+    : uGetPerms();
+
   const obj={
-    user:usr,pass,
+    user:usr, pass,
     nombre:document.getElementById('uNombre').value,
     rol,
     modulos:['dashboard',...mods.filter(m=>m!=='dashboard')],
-    permisos:perms,
+    permisos:permsSimple,           // array simple: ['perm_editar',...]
+    permisosGranulares:permsGranular, // objeto: {vehiculos:{ver,editar,...},...}
     estado:document.getElementById('uEstado').value
   };
+
   if(editId.u){
     obj.id=editId.u;
     DB.users[DB.users.findIndex(x=>x.id===editId.u)]=obj;
+    // Si se está editando el usuario actualmente logueado, actualizar CU
+    if(CU && CU.id===editId.u){
+      CU=obj;
+      // Actualizar sidebar
+      const rolLabels={admin:'Administrador',dueno:'Dueño',secretaria:'Secretaria',
+        pintor:'Pintor',desabollador:'Desabollador',tecnico:'Técnico',
+        recepcionista:'Recepcionista',operador:'Operador'};
+      document.getElementById('sidebarRole').textContent=rolLabels[obj.rol]||obj.rol;
+    }
     toast('Usuario actualizado ✓');
   } else {
     if(DB.users.find(u=>u.user===usr)){toast('Usuario ya existe','error');return;}
@@ -4250,8 +4301,22 @@ const PRESETS={
     inventario:{ver:true},
   }),
 };
-function uCanDo(mod,accion){if(!CU)return false;if(CU.rol==='admin')return true;const p=CU.permisos||{};return!!(p[mod]&&p[mod][accion]);}
-function uCanSee(mod){return uCanDo(mod,'ver');}
+function uCanDo(mod,accion){
+  if(!CU) return false;
+  if(CU.rol==='admin') return true;
+  // Usar permisosGranulares (objeto) para navegación y acciones granulares
+  const p=CU.permisosGranulares||CU.permisos||{};
+  if(Array.isArray(p)) return false; // si sigue siendo array, no tiene granular
+  return !!(p[mod]&&p[mod][accion]);
+}
+function uCanSee(mod){
+  if(!CU) return false;
+  if(CU.rol==='admin') return true;
+  // Verificar en permisos granulares
+  if(uCanDo(mod,'ver')) return true;
+  // Fallback: verificar en array modulos
+  return (CU.modulos||[]).includes(mod);
+}
 function uApplyPreset(rol){
   const preset=PRESETS[rol];if(!preset)return;
   const perms=preset();
@@ -4277,23 +4342,19 @@ function uFilterNav(){
     el.style.display=uCanSee(page)?'':'none';
   });
 }
-// Patch openUserModal to render perms
+// Patch openUserModal: renderizar tabla de permisos granulares
 const _ouM=openUserModal;
 openUserModal=function(id=null){
   _ouM(id);
   const user=id?DB.users.find(u=>u.id===id):null;
-  uRenderPerms(user?.permisos||{});
-  if(!id) uApplyPreset(document.getElementById('uRol')?.value||'operador');
+  // Convertir array de permisos simples a objeto granular para la tabla visual
+  const permsObj = user?.permisosGranulares || {};
+  uRenderPerms(permsObj);
+  if(!id) uApplyPreset(document.getElementById('uRol')?.value||'dueno');
 };
-// Patch saveUser to persist perms
-const _suM=saveUser;
-saveUser=function(){
-  _suM();
-  const uName=document.getElementById('uUser')?.value.trim();
-  const u=DB.users.find(x=>x.user===uName);
-  if(u){u.permisos=uGetPerms();u.rol=document.getElementById('uRol')?.value||'operador';}
-  renderUsers();
-};
+// saveUser ya guarda permisos y rol correctamente — no se necesita patch
+// Los permisos granulares (uGetPerms) se guardan en u.permisosGranulares separado
+// para no conflictuar con el array u.permisos que usa canDo()
 // Patch showPage with perm check
 const _spM=showPage;
 showPage=function(page){
