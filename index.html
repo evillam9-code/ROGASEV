@@ -1132,21 +1132,17 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="form-row"><label class="form-label">Nombre Completo</label><input class="form-control" id="uNombre"></div>
       <div class="form-row"><label class="form-label">Contraseña</label><input type="password" class="form-control" id="uPass"></div>
       <div class="form-row"><label class="form-label">Rol</label><select class="form-control" id="uRol" onchange="uApplyPreset(this.value)">
-  <optgroup label="── Roles con Acceso Total ──">
-    <option value="admin">👑 Administrador (todo)</option>
-    <option value="dueno">🏠 Dueño (todo + ver reportes)</option>
+  <optgroup label="── Acceso Total ──">
+    <option value="admin">👑 Administrador</option>
   </optgroup>
-  <optgroup label="── Roles de Oficina ──">
+  <optgroup label="── Roles (permisos asignados por Admin) ──">
+    <option value="dueno">🏠 Dueño</option>
     <option value="secretaria">💼 Secretaria</option>
-  </optgroup>
-  <optgroup label="── Roles de Taller ──">
     <option value="pintor">🎨 Pintor</option>
     <option value="desabollador">🔨 Desabollador</option>
     <option value="tecnico">🔧 Técnico General</option>
     <option value="recepcionista">📋 Recepcionista</option>
-  </optgroup>
-  <optgroup label="── Personalizado ──">
-    <option value="operador">⚙️ Operador (personalizado)</option>
+    <option value="operador">⚙️ Operador</option>
   </optgroup>
 </select></div>
     </div>
@@ -1180,7 +1176,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
     </div>
     <div id="adminNote" style="display:none;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 14px;margin:8px 0;font-size:.82rem;color:var(--info);align-items:center;gap:8px;">
       <span style="font-size:1rem;">ℹ️</span>
-      <span>El <strong>Administrador</strong> y el <strong>Dueño</strong> tienen acceso a <strong>todos los módulos y permisos</strong> automáticamente. Para los demás roles, los permisos se cargan automáticamente al seleccionar el rol, pero pueden ajustarse.</span>
+      <span>Solo el <strong>Administrador</strong> tiene acceso total automático a todo el sistema. Para todos los demás roles — incluyendo Dueño — el administrador asigna exactamente qué pueden <strong>ver, crear, editar o borrar</strong>. Los permisos sugeridos se cargan al seleccionar el rol y pueden ajustarse.</span>
     </div>
     <div class="form-row mt-3"><label class="form-label">Estado</label><select class="form-control" id="uEstado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
     </div>
@@ -1197,7 +1193,7 @@ let CU=null,editId={v:null,f:null,c:null,e:null,s:null,cj:null,u:null};
 // ── Control de permisos ──────────────────────────────────────────────
 function canDo(accion){
   if(!CU) return false;
-  if(CU.rol==='admin'||CU.rol==='dueno') return true;
+  if(CU.rol==='admin') return true; // solo admin tiene acceso total
   return (CU.permisos||[]).includes(accion);
 }
 function canEdit(){ return canDo('perm_editar'); }
@@ -1722,7 +1718,7 @@ document.getElementById('reportContent').innerHTML=`<div class="stats-grid"><div
 </div>`;}
 function renderUsers(){
   document.getElementById('userTable').innerHTML=DB.users.map(u=>{
-    const isAdmin=u.rol==='admin'||u.rol==='dueno';
+    const isAdmin=u.rol==='admin';
     const ROL_BADGE={admin:'👑 Admin',dueno:'🏠 Dueño',secretaria:'💼 Secretaria',
       pintor:'🎨 Pintor',desabollador:'🔨 Desabollador',tecnico:'🔧 Técnico',
       recepcionista:'📋 Recepcionista',operador:'⚙️ Operador'};
@@ -1772,7 +1768,7 @@ function openUserModal(id=null){
   // Mostrar/ocultar secciones según rol
   const rol=document.getElementById('uRol');
   function togglePerms(){
-    const isAdmin=rol.value==='admin'||rol.value==='dueno';
+    const isAdmin=rol.value==='admin'; // solo admin, los demás usan permisos
     const modsDiv=document.getElementById('modulesCheck').closest('.form-row');
     const permsDiv=document.getElementById('permisosCheck').closest('.form-row');
     if(modsDiv) modsDiv.style.opacity=isAdmin?'0.4':'1';
@@ -1792,7 +1788,7 @@ function saveUser(){
   const isAdmin=rol==='admin';
   const ALL_MODS=['dashboard','vehiculos','recepcion','facturacion','clientes','empleados',
     'suplidores','materiales','inventario','cxp','caja','bancos','reportes','config','bitacora','usuarios'];
-  const isFullAccess=isAdmin||rol==='dueno';
+  const isFullAccess=isAdmin; // solo admin tiene acceso total automático
   const mods=isFullAccess?ALL_MODS:[...document.querySelectorAll('#modulesCheck input:checked')].map(cb=>cb.value);
   const perms=isFullAccess?['perm_editar','perm_borrar','perm_cobrar','perm_pagar']:
     [...document.querySelectorAll('#permisosCheck input:checked')].map(cb=>cb.value);
@@ -4195,7 +4191,9 @@ function _allPerms(mods){
 const PRESETS={
   // Acceso total
   admin:()=>{const p={};MODULOS_PERMS.forEach(m=>{p[m.key]={};m.acciones.forEach(a=>p[m.key][a]=true);});return p;},
-  dueno:()=>{const p={};MODULOS_PERMS.forEach(m=>{p[m.key]={};m.acciones.forEach(a=>p[m.key][a]=true);});return p;},
+  // Dueño: sugerencia por defecto — admin puede ajustar cualquier permiso
+  dueno:()=>_allPerms(['dashboard','recepcion','vehiculos','facturacion','clientes',
+    'empleados','suplidores','materiales','inventario','cxp','caja','bancos','reportes','bitacora']),
 
   // Secretaria: todo excepto config y usuarios
   secretaria:()=>_allPerms(['dashboard','recepcion','vehiculos','facturacion','clientes',
@@ -4252,7 +4250,7 @@ const PRESETS={
     inventario:{ver:true},
   }),
 };
-function uCanDo(mod,accion){if(!CU)return false;if(CU.rol==='admin'||CU.rol==='dueno')return true;const p=CU.permisos||{};return!!(p[mod]&&p[mod][accion]);}
+function uCanDo(mod,accion){if(!CU)return false;if(CU.rol==='admin')return true;const p=CU.permisos||{};return!!(p[mod]&&p[mod][accion]);}
 function uCanSee(mod){return uCanDo(mod,'ver');}
 function uApplyPreset(rol){
   const preset=PRESETS[rol];if(!preset)return;
