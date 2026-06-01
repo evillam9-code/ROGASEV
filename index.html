@@ -60,35 +60,48 @@
 
   // ── Cargar todos los datos de Firestore ──────────────────────────
   async function loadFromFirestore(){
+    // Guardar datos en objeto temporal — DB puede no existir aún
+    window._fbData = {};
     try{
       for(const col of DB_COLS){
         const snap = await fsdb.collection(col).get();
         if(!snap.empty){
-          const arr = snap.docs.map(d=>({...d.data(), _fbId:d.id}));
-          // Fusionar con DB local (Firestore tiene prioridad si no está vacío)
-          // Solo actualizar si Firestore tiene datos O si ya había datos en esa colección
-        // NUNCA sobreescribir con array vacío (colección no creada aún en Firestore)
-        if(window.DB){
-          if(arr.length > 0){
-            window.DB[col] = arr;
-          }
-          // Si arr está vacío pero DB ya tiene datos locales, mantener los locales
-          // Firestore creará la colección cuando se guarde algo por primera vez
-        }
+          window._fbData[col] = snap.docs.map(d=>({...d.data(), _fbId:d.id}));
         }
       }
       // config
       const cfgSnap = await fsdb.collection('config').doc('main').get();
-      if(cfgSnap.exists && window.DB) window.DB.config = {...(window.DB.config||{}), ...cfgSnap.data()};
+      if(cfgSnap.exists) window._fbData._config = cfgSnap.data();
       // nxt counters
       const nxtSnap = await fsdb.collection('_meta').doc('nxt').get();
-      if(nxtSnap.exists && window.DB) Object.assign(window.DB.nxt, nxtSnap.data());
+      if(nxtSnap.exists) window._fbData._nxt = nxtSnap.data();
       window.FB_ONLINE = true;
+      console.log('Firestore cargado. Colecciones:', Object.keys(window._fbData).join(', '));
     }catch(e){
       console.warn('Firestore no disponible, usando datos locales:', e.message);
       window.FB_ONLINE = false;
     }
+    // Aplicar a DB si ya existe, si no lo hará applyFbData() cuando DB esté listo
+    applyFbData();
   }
+
+  // ── Aplicar datos de Firestore a DB cuando esté disponible ────────
+  function applyFbData(){
+    const data = window._fbData;
+    const db = window.DB;
+    if(!data || !db) return; // DB no está lista todavía
+    for(const col of DB_COLS){
+      if(data[col] && data[col].length > 0){
+        db[col] = data[col];
+        console.log('Aplicado:', col, data[col].length, 'docs');
+      }
+    }
+    if(data._config) db.config = {...(db.config||{}), ...data._config};
+    if(data._nxt) Object.assign(db.nxt, data._nxt);
+    console.log('✅ Datos Firestore aplicados a DB correctamente');
+  }
+  // Exponer para que el script principal lo llame cuando DB esté lista
+  window.applyFbData = applyFbData;
 
   // ── Escuchar cambios en tiempo real (solo después de login) ──────
   window.fbStartListeners = function(){
@@ -175,7 +188,9 @@
   // ── Inicialización principal ─────────────────────────────────────
   // Esperar a que el DOM y los scripts principales carguen
   window.addEventListener('load', async function(){
-    await loadFromFirestore();
+    await loadFromFirestore(); // carga en _fbData y llama applyFbData
+    // Si DB ya estaba lista (script principal corrió primero), aplicar ahora
+    if(window.DB && window._fbData) applyFbData();
     updateIndicators(window.FB_ONLINE);
     if(window.FB_ONLINE){
       await seedFirestoreIfEmpty();
@@ -1219,6 +1234,9 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
 <script>
 let DB={users:[{id:1,user:'admin',pass:'admin123',nombre:'Administrador',rol:'admin',modulos:['dashboard','vehiculos','facturacion','clientes','empleados','suplidores','caja','reportes','usuarios'],estado:'activo'},{id:2,user:'operador',pass:'op123',nombre:'Operador General',rol:'operador',modulos:['vehiculos','facturacion','clientes','caja'],estado:'activo'}],clientes:[{id:1,nombre:'KENUMAR AUTO IMPORT',rnc:'1231312313',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-777-7777',tel2:'829-123-4567'},{id:2,nombre:'ZYRLE AUTO',rnc:'',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-326-2222',tel2:''},{id:3,nombre:'ANDY & JULIAN AUTO',rnc:'',dir:'AUTOPISTA DUARTE KM 12',ciudad:'SANTIAGO',tel1:'8298300202',tel2:''},{id:4,nombre:'KENUAN AUTOSALE',rnc:'',dir:'AUTOPISTA DUARTE KM 13',ciudad:'SANTIAGO',tel1:'8292631406',tel2:''},{id:5,nombre:'RIVAS Y TAPIA AUTO',rnc:'',dir:'AUTOPISTA DUARTE',ciudad:'SANTIAGO',tel1:'8093086215',tel2:''},{id:6,nombre:'TESORO IMPORT',rnc:'',dir:'AUTOPISTA DUARTE KM 14',ciudad:'SANTIAGO',tel1:'8093539874',tel2:''},{id:7,nombre:'IMPORT INVERSIONES',rnc:'130377022',dir:'SANTO DOMINGO',ciudad:'SANTO DOMINGO',tel1:'8098385232',tel2:''},{id:8,nombre:'FAUSTO PEREZ',rnc:'',dir:'LA ZURZA',ciudad:'SANTIAGO',tel1:'8093605084',tel2:''}],empleados:[{id:1,nombre:'JUAN CARLOS MOREL',cargo:'PINTOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:2,nombre:'PEDRO MARTINEZ',cargo:'DESABOLLADOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:3,nombre:'CARLOS REYES',cargo:'PREPARADOR',tipo:'FIJO',tarifa:15000,tel:'',fecha:'2022-06-01',estado:'ACTIVO'}],suplidores:[{id:1,nombre:'FATI AUTO PINTURA',ncf:'131941915',dir:'CALLE COLON, 77',ciudad:'MOCA',tel1:'829-599-5020',tel2:''},{id:2,nombre:'REPUESTO LA PRESA',ncf:'',dir:'',ciudad:'',tel1:'',tel2:''}],vehiculos:[{id:1,chasis:'113155',vehiculo:'TOYOTA RAV4 NEGRO 14',clienteId:1,color:'NEGRO',fecha:'2024-01-15',monto:38000,montoPag:38000,estatus:'PENDIENTE',obs:'',piezas:{paint:['BONETE','CAPOTA'],dent:[],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Pintura completa vehículo',monto:8000,pagado:false}]},{id:2,chasis:'501889',vehiculo:'SUBARU FORESTER NEGRO 18',clienteId:4,color:'NEGRO PERLA',fecha:'2024-02-20',monto:17500,montoPag:17500,estatus:'EN PROCESO',obs:'',piezas:{paint:['BONETE','BUMPER TRAS.'],dent:['GUARDA LODO DEL. L'],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Bonete y bumper trasero',monto:5000,pagado:false},{empId:2,tipoTrabajo:'Desabolladura',desc:'Guarda lodo delantero L',monto:1800,pagado:true}]},{id:3,chasis:'7644724',vehiculo:'KIA SPORTAGE 19 BLANCO',clienteId:3,color:'BLANCO',fecha:'2024-04-18',monto:13000,montoPag:13000,estatus:'PARA ENTREGA',obs:'',piezas:{paint:[],dent:[],prep:[],brill:[]},ajustes:[]}],facturas:[{id:1,fecha:'2024-04-13',clienteId:8,vehiculo:'TOYOTA COROLLA AZUL 03',chasis:'30351',color:'',tipoVeh:'CARRO',items:[{desc:'PINTURA COMPLETA',ud:1,precio:50000},{desc:'RETROVISORES',ud:1,precio:12300}],subtotal:62300,itbis:0,aplicaItbis:false,dcto:0,total:62300,estatus:'PAGADO',obs:''},{id:2,fecha:'2024-04-20',clienteId:7,vehiculo:'SUBARU FORESTER NEGRO 18',chasis:'501889',color:'NEGRO PERLA',tipoVeh:'JEEP/SUV',items:[{desc:'BONETE',ud:1,precio:3500},{desc:'BUMPER TRASERO',ud:1,precio:3500},{desc:'RETROVISORES',ud:1,precio:3500}],subtotal:10500,itbis:1890,aplicaItbis:true,dcto:0,total:12390,estatus:'PENDIENTE',obs:'BASE ESPEJO BMW'}],caja:[{id:1,fecha:'2024-03-10',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'ABONO FACTURAS FATI',factura:'3236',mover:'SALIDA',moneda:'PESOS',monto:50000,estatus:'PAGADO',persona:'FATI AUTO PINTURA'},{id:2,fecha:'2024-04-23',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'MATERIALES PINTURA',factura:'41479',mover:'ENTRADA',moneda:'PESOS',monto:16965,estatus:'POR PAGAR',persona:'FATI AUTO PINTURA'},{id:3,fecha:'2024-04-24',tipo:'EFECTIVO',cuenta:'CAJA FUERTE EN PESOS',desc:'COBRO CLIENTE FAUSTO',factura:'0001',mover:'ENTRADA',moneda:'PESOS',monto:62300,estatus:'COBRADO',persona:'FAUSTO PEREZ'}],nxt:{v:4,f:3,c:9,e:4,s:3,cj:4,u:3}};
 window.DB=DB; // sincronizar con Firebase
+// Aplicar datos de Firestore si ya cargaron (Firebase puede haber terminado antes)
+if(window.applyFbData) window.applyFbData();
+else window._dbReady=true; // señal para que applyFbData corra cuando Firebase termine
 let CU=null,editId={v:null,f:null,c:null,e:null,s:null,cj:null,u:null};
 
 // ── Control de permisos ──────────────────────────────────────────────
