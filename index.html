@@ -66,7 +66,11 @@
         if(!snap.empty){
           const arr = snap.docs.map(d=>({...d.data(), _fbId:d.id}));
           // Fusionar con DB local (Firestore tiene prioridad si no está vacío)
-          if(window.DB) window.DB[col] = arr;
+          // Actualizar DB (window.DB es el mismo objeto)
+        if(window.DB){ 
+          window.DB[col] = arr;
+          // También asegurar que nxt se mantiene
+        }
         }
       }
       // config
@@ -86,17 +90,36 @@
   window.fbStartListeners = function(){
     DB_COLS.forEach(col=>{
       fsdb.collection(col).onSnapshot(snap=>{
-        if(!window.DB) return;
+        // Actualizar TANTO window.DB como DB (son el mismo objeto pero por seguridad)
         const arr = snap.docs.map(d=>({...d.data(), _fbId:d.id}));
-        window.DB[col] = arr;
-        // Re-render módulo activo
-        const p = document.querySelector('.nav-item.active')?.getAttribute('data-page');
-        const map = {vehiculos:window.renderVeh,facturacion:window.renderFact,
-          clientes:window.renderClients,empleados:window.renderEmp,
-          materiales:window.renderMateriales,cxp:window.renderCXP,
-          cxc:window.renderCXC,caja:window.renderCaja,
-          recepcion:window.renderRecepcion,bancos:window.renderBancos};
-        try{ if(p && map[p]) map[p](); }catch(e){}
+        // Solo actualizar si hay datos O si Firestore dice que está vacío
+        // (evitar sobreescribir con [] si Firestore aún no cargó)
+        if(window.DB) window.DB[col] = arr;
+        // Re-renderizar módulo activo Y dashboard siempre
+        try{
+          const p = document.querySelector('.nav-item.active')?.getAttribute('data-page');
+          const map = {
+            dashboard: window.renderDashboard,
+            vehiculos: window.renderVeh,
+            facturacion: window.renderFact,
+            clientes: window.renderClients,
+            empleados: window.renderEmp,
+            suplidores: window.renderSup,
+            materiales: window.renderMateriales,
+            cxp: window.renderCXP,
+            cxc: window.renderCXC,
+            caja: window.renderCaja,
+            recepcion: window.renderRecepcion,
+            bancos: ()=>{ window.renderBancos?.(); window.populateBancosSelects?.(); },
+            inventario: window.renderInventario,
+            bitacora: window.renderBitacora,
+            reportes: window.renderReportes,
+            usuarios: window.renderUsers,
+          };
+          if(p && map[p]) map[p]();
+          // Si no estamos en dashboard, actualizar igual para los stats
+          if(p && p !== 'dashboard' && window.renderDashboard) window.renderDashboard();
+        }catch(e){ console.warn('render error after snapshot', col, e.message); }
       }, err=>console.warn('listener error', col, err.message));
     });
   };
@@ -1186,8 +1209,8 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
 
 <div id="toast"></div>
 <script>
-window.DB=window.DB||{};let DB={users:[{id:1,user:'admin',pass:'admin123',nombre:'Administrador',rol:'admin',modulos:['dashboard','vehiculos','facturacion','clientes','empleados','suplidores','caja','reportes','usuarios'],estado:'activo'},{id:2,user:'operador',pass:'op123',nombre:'Operador General',rol:'operador',modulos:['vehiculos','facturacion','clientes','caja'],estado:'activo'}],clientes:[{id:1,nombre:'KENUMAR AUTO IMPORT',rnc:'1231312313',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-777-7777',tel2:'829-123-4567'},{id:2,nombre:'ZYRLE AUTO',rnc:'',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-326-2222',tel2:''},{id:3,nombre:'ANDY & JULIAN AUTO',rnc:'',dir:'AUTOPISTA DUARTE KM 12',ciudad:'SANTIAGO',tel1:'8298300202',tel2:''},{id:4,nombre:'KENUAN AUTOSALE',rnc:'',dir:'AUTOPISTA DUARTE KM 13',ciudad:'SANTIAGO',tel1:'8292631406',tel2:''},{id:5,nombre:'RIVAS Y TAPIA AUTO',rnc:'',dir:'AUTOPISTA DUARTE',ciudad:'SANTIAGO',tel1:'8093086215',tel2:''},{id:6,nombre:'TESORO IMPORT',rnc:'',dir:'AUTOPISTA DUARTE KM 14',ciudad:'SANTIAGO',tel1:'8093539874',tel2:''},{id:7,nombre:'IMPORT INVERSIONES',rnc:'130377022',dir:'SANTO DOMINGO',ciudad:'SANTO DOMINGO',tel1:'8098385232',tel2:''},{id:8,nombre:'FAUSTO PEREZ',rnc:'',dir:'LA ZURZA',ciudad:'SANTIAGO',tel1:'8093605084',tel2:''}],empleados:[{id:1,nombre:'JUAN CARLOS MOREL',cargo:'PINTOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:2,nombre:'PEDRO MARTINEZ',cargo:'DESABOLLADOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:3,nombre:'CARLOS REYES',cargo:'PREPARADOR',tipo:'FIJO',tarifa:15000,tel:'',fecha:'2022-06-01',estado:'ACTIVO'}],suplidores:[{id:1,nombre:'FATI AUTO PINTURA',ncf:'131941915',dir:'CALLE COLON, 77',ciudad:'MOCA',tel1:'829-599-5020',tel2:''},{id:2,nombre:'REPUESTO LA PRESA',ncf:'',dir:'',ciudad:'',tel1:'',tel2:''}],vehiculos:[{id:1,chasis:'113155',vehiculo:'TOYOTA RAV4 NEGRO 14',clienteId:1,color:'NEGRO',fecha:'2024-01-15',monto:38000,montoPag:38000,estatus:'PENDIENTE',obs:'',piezas:{paint:['BONETE','CAPOTA'],dent:[],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Pintura completa vehículo',monto:8000,pagado:false}]},{id:2,chasis:'501889',vehiculo:'SUBARU FORESTER NEGRO 18',clienteId:4,color:'NEGRO PERLA',fecha:'2024-02-20',monto:17500,montoPag:17500,estatus:'EN PROCESO',obs:'',piezas:{paint:['BONETE','BUMPER TRAS.'],dent:['GUARDA LODO DEL. L'],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Bonete y bumper trasero',monto:5000,pagado:false},{empId:2,tipoTrabajo:'Desabolladura',desc:'Guarda lodo delantero L',monto:1800,pagado:true}]},{id:3,chasis:'7644724',vehiculo:'KIA SPORTAGE 19 BLANCO',clienteId:3,color:'BLANCO',fecha:'2024-04-18',monto:13000,montoPag:13000,estatus:'PARA ENTREGA',obs:'',piezas:{paint:[],dent:[],prep:[],brill:[]},ajustes:[]}],facturas:[{id:1,fecha:'2024-04-13',clienteId:8,vehiculo:'TOYOTA COROLLA AZUL 03',chasis:'30351',color:'',tipoVeh:'CARRO',items:[{desc:'PINTURA COMPLETA',ud:1,precio:50000},{desc:'RETROVISORES',ud:1,precio:12300}],subtotal:62300,itbis:0,aplicaItbis:false,dcto:0,total:62300,estatus:'PAGADO',obs:''},{id:2,fecha:'2024-04-20',clienteId:7,vehiculo:'SUBARU FORESTER NEGRO 18',chasis:'501889',color:'NEGRO PERLA',tipoVeh:'JEEP/SUV',items:[{desc:'BONETE',ud:1,precio:3500},{desc:'BUMPER TRASERO',ud:1,precio:3500},{desc:'RETROVISORES',ud:1,precio:3500}],subtotal:10500,itbis:1890,aplicaItbis:true,dcto:0,total:12390,estatus:'PENDIENTE',obs:'BASE ESPEJO BMW'}],caja:[{id:1,fecha:'2024-03-10',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'ABONO FACTURAS FATI',factura:'3236',mover:'SALIDA',moneda:'PESOS',monto:50000,estatus:'PAGADO',persona:'FATI AUTO PINTURA'},{id:2,fecha:'2024-04-23',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'MATERIALES PINTURA',factura:'41479',mover:'ENTRADA',moneda:'PESOS',monto:16965,estatus:'POR PAGAR',persona:'FATI AUTO PINTURA'},{id:3,fecha:'2024-04-24',tipo:'EFECTIVO',cuenta:'CAJA FUERTE EN PESOS',desc:'COBRO CLIENTE FAUSTO',factura:'0001',mover:'ENTRADA',moneda:'PESOS',monto:62300,estatus:'COBRADO',persona:'FAUSTO PEREZ'}],nxt:{v:4,f:3,c:9,e:4,s:3,cj:4,u:3}};
-window.DB=DB; // exponer para módulo Firebase
+let DB={users:[{id:1,user:'admin',pass:'admin123',nombre:'Administrador',rol:'admin',modulos:['dashboard','vehiculos','facturacion','clientes','empleados','suplidores','caja','reportes','usuarios'],estado:'activo'},{id:2,user:'operador',pass:'op123',nombre:'Operador General',rol:'operador',modulos:['vehiculos','facturacion','clientes','caja'],estado:'activo'}],clientes:[{id:1,nombre:'KENUMAR AUTO IMPORT',rnc:'1231312313',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-777-7777',tel2:'829-123-4567'},{id:2,nombre:'ZYRLE AUTO',rnc:'',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-326-2222',tel2:''},{id:3,nombre:'ANDY & JULIAN AUTO',rnc:'',dir:'AUTOPISTA DUARTE KM 12',ciudad:'SANTIAGO',tel1:'8298300202',tel2:''},{id:4,nombre:'KENUAN AUTOSALE',rnc:'',dir:'AUTOPISTA DUARTE KM 13',ciudad:'SANTIAGO',tel1:'8292631406',tel2:''},{id:5,nombre:'RIVAS Y TAPIA AUTO',rnc:'',dir:'AUTOPISTA DUARTE',ciudad:'SANTIAGO',tel1:'8093086215',tel2:''},{id:6,nombre:'TESORO IMPORT',rnc:'',dir:'AUTOPISTA DUARTE KM 14',ciudad:'SANTIAGO',tel1:'8093539874',tel2:''},{id:7,nombre:'IMPORT INVERSIONES',rnc:'130377022',dir:'SANTO DOMINGO',ciudad:'SANTO DOMINGO',tel1:'8098385232',tel2:''},{id:8,nombre:'FAUSTO PEREZ',rnc:'',dir:'LA ZURZA',ciudad:'SANTIAGO',tel1:'8093605084',tel2:''}],empleados:[{id:1,nombre:'JUAN CARLOS MOREL',cargo:'PINTOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:2,nombre:'PEDRO MARTINEZ',cargo:'DESABOLLADOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:3,nombre:'CARLOS REYES',cargo:'PREPARADOR',tipo:'FIJO',tarifa:15000,tel:'',fecha:'2022-06-01',estado:'ACTIVO'}],suplidores:[{id:1,nombre:'FATI AUTO PINTURA',ncf:'131941915',dir:'CALLE COLON, 77',ciudad:'MOCA',tel1:'829-599-5020',tel2:''},{id:2,nombre:'REPUESTO LA PRESA',ncf:'',dir:'',ciudad:'',tel1:'',tel2:''}],vehiculos:[{id:1,chasis:'113155',vehiculo:'TOYOTA RAV4 NEGRO 14',clienteId:1,color:'NEGRO',fecha:'2024-01-15',monto:38000,montoPag:38000,estatus:'PENDIENTE',obs:'',piezas:{paint:['BONETE','CAPOTA'],dent:[],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Pintura completa vehículo',monto:8000,pagado:false}]},{id:2,chasis:'501889',vehiculo:'SUBARU FORESTER NEGRO 18',clienteId:4,color:'NEGRO PERLA',fecha:'2024-02-20',monto:17500,montoPag:17500,estatus:'EN PROCESO',obs:'',piezas:{paint:['BONETE','BUMPER TRAS.'],dent:['GUARDA LODO DEL. L'],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Bonete y bumper trasero',monto:5000,pagado:false},{empId:2,tipoTrabajo:'Desabolladura',desc:'Guarda lodo delantero L',monto:1800,pagado:true}]},{id:3,chasis:'7644724',vehiculo:'KIA SPORTAGE 19 BLANCO',clienteId:3,color:'BLANCO',fecha:'2024-04-18',monto:13000,montoPag:13000,estatus:'PARA ENTREGA',obs:'',piezas:{paint:[],dent:[],prep:[],brill:[]},ajustes:[]}],facturas:[{id:1,fecha:'2024-04-13',clienteId:8,vehiculo:'TOYOTA COROLLA AZUL 03',chasis:'30351',color:'',tipoVeh:'CARRO',items:[{desc:'PINTURA COMPLETA',ud:1,precio:50000},{desc:'RETROVISORES',ud:1,precio:12300}],subtotal:62300,itbis:0,aplicaItbis:false,dcto:0,total:62300,estatus:'PAGADO',obs:''},{id:2,fecha:'2024-04-20',clienteId:7,vehiculo:'SUBARU FORESTER NEGRO 18',chasis:'501889',color:'NEGRO PERLA',tipoVeh:'JEEP/SUV',items:[{desc:'BONETE',ud:1,precio:3500},{desc:'BUMPER TRASERO',ud:1,precio:3500},{desc:'RETROVISORES',ud:1,precio:3500}],subtotal:10500,itbis:1890,aplicaItbis:true,dcto:0,total:12390,estatus:'PENDIENTE',obs:'BASE ESPEJO BMW'}],caja:[{id:1,fecha:'2024-03-10',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'ABONO FACTURAS FATI',factura:'3236',mover:'SALIDA',moneda:'PESOS',monto:50000,estatus:'PAGADO',persona:'FATI AUTO PINTURA'},{id:2,fecha:'2024-04-23',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'MATERIALES PINTURA',factura:'41479',mover:'ENTRADA',moneda:'PESOS',monto:16965,estatus:'POR PAGAR',persona:'FATI AUTO PINTURA'},{id:3,fecha:'2024-04-24',tipo:'EFECTIVO',cuenta:'CAJA FUERTE EN PESOS',desc:'COBRO CLIENTE FAUSTO',factura:'0001',mover:'ENTRADA',moneda:'PESOS',monto:62300,estatus:'COBRADO',persona:'FAUSTO PEREZ'}],nxt:{v:4,f:3,c:9,e:4,s:3,cj:4,u:3}};
+window.DB=DB; // sincronizar con Firebase
 let CU=null,editId={v:null,f:null,c:null,e:null,s:null,cj:null,u:null};
 
 // ── Control de permisos ──────────────────────────────────────────────
@@ -1283,6 +1306,26 @@ document.getElementById('wRole').textContent=wRolLabels[found.rol]||found.rol;
 function closeWelcome(){document.getElementById('welcomeModal').style.display='none';document.getElementById('mainApp').style.display='block';setTimeout(applyLogoEverywhere,50);document.getElementById('sidebarUser').textContent=CU.nombre;logBit('USUARIO','Inicio de sesión',`${CU.nombre} (${CU.rol})`);const rolLabels={admin:'Administrador',dueno:'Dueño',secretaria:'Secretaria',
   pintor:'Pintor',desabollador:'Desabollador',tecnico:'Técnico',recepcionista:'Recepcionista',operador:'Operador'};
 document.getElementById('sidebarRole').textContent=rolLabels[CU.rol]||CU.rol;document.getElementById('sidebarAvatar').textContent=CU.nombre[0].toUpperCase();applyPerms();renderDashboard();}
+
+// ── Exponer funciones de render para el listener de Firebase ────────
+window.renderVeh = function(){ try{ renderVeh(); }catch(e){} };
+window.renderFact = function(){ try{ renderFact(); }catch(e){} };
+window.renderClients = function(){ try{ renderClients(); }catch(e){} };
+window.renderEmp = function(){ try{ renderEmp(); }catch(e){} };
+window.renderSup = function(){ try{ renderSup(); }catch(e){} };
+window.renderMateriales = function(){ try{ renderMateriales(); }catch(e){} };
+window.renderCXP = function(){ try{ renderCXP(); }catch(e){} };
+window.renderCXC = function(){ try{ renderCXC(); }catch(e){} };
+window.renderCaja = function(){ try{ renderCaja(); }catch(e){} };
+window.renderRecepcion = function(){ try{ renderRecepcion(); }catch(e){} };
+window.renderBancos = function(){ try{ renderBancos(); populateBancosSelects(); }catch(e){} };
+window.renderInventario = function(){ try{ renderInventario(); }catch(e){} };
+window.renderBitacora = function(){ try{ renderBitacora(); }catch(e){} };
+window.renderReportes = function(){ try{ renderReportes(); }catch(e){} };
+window.renderUsers = function(){ try{ renderUsers(); }catch(e){} };
+window.renderDashboard = function(){ try{ renderDashboard(); }catch(e){} };
+window.populateBancosSelects = function(){ try{ populateBancosSelects(); }catch(e){} };
+
 function doLogout(){CU=null;document.getElementById('mainApp').style.display='none';document.getElementById('loginScreen').style.display='flex';['loginUser','loginPass'].forEach(id=>document.getElementById(id).value='');document.getElementById('loginError').style.display='none';const fbInd=document.getElementById('fbIndicator');if(fbInd)fbInd.style.display='none';}
 function applyPerms(){const a=CU.rol==='admin';document.querySelectorAll('.admin-only').forEach(el=>el.style.display=a?'':'none');document.querySelectorAll('.nav-item[data-page]').forEach(el=>{const p=el.getAttribute('data-page');el.style.display=(p==='dashboard'||a||CU.modulos.includes(p))?'flex':'none';});}
 function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+name)?.classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelector(`.nav-item[data-page="${name}"]`)?.classList.add('active');const t={dashboard:'Dashboard',vehiculos:'Órdenes de Trabajo',facturacion:'Facturación',clientes:'Clientes',empleados:'Empleados',suplidores:'Suplidores',materiales:'Materiales',cxp:'CXP — Por Pagar',cxc:'CXC — Por Cobrar',caja:'Caja',reportes:'Reportes',inventario:'Inventario — Kardex',recepcion:'Recepción de Vehículo',bitacora:'Bitácora del Sistema',config:'Configuración del Sistema',usuarios:'Usuarios',bancos:'Cuentas Bancarias'};document.getElementById('topbarTitle').textContent=t[name]||name;const r={dashboard:renderDashboard,vehiculos:()=>renderVeh(),facturacion:()=>renderFact(),clientes:()=>renderClients(),empleados:()=>renderEmp(),suplidores:()=>renderSup(),materiales:()=>renderMateriales(),cxp:()=>renderCXP(),cxc:()=>{showPage('facturacion');setTimeout(()=>switchFactTab('cobros'),50);},caja:()=>renderCaja(),reportes:renderReportes,inventario:renderInventario,recepcion:renderRecepcion,bitacora:()=>renderBitacora(),config:renderConfig,usuarios:renderUsers,bancos:()=>{renderBancos();populateBancosSelects();}};r[name]?.();}
@@ -4453,49 +4496,23 @@ function saveBanco(){
   if(!DB.bancos) DB.bancos=[];
   if(editId_banco.b){obj.id=editId_banco.b;DB.bancos[DB.bancos.findIndex(x=>x.id===editId_banco.b)]=obj;toast('Cuenta actualizada ✓');}
   else{obj.id=DB.nxt.banco++;DB.bancos.push(obj);toast('Cuenta guardada ✓');}
+  window.fbSaveDoc?.('bancos', obj);
+  logBit?.('BANCOS', editId_banco.b?'Cuenta editada':'Cuenta creada', `${obj.banco} — ${obj.numCuenta}`);
   closeModal('bancoModal');
   renderBancos();
   populateBancosSelects();
 }
 
-function delBanco(id){confirm2('¿Eliminar cuenta bancaria?',ok=>{if(!ok)return;DB.bancos=(DB.bancos||[]).filter(x=>x.id!==id);renderBancos();populateBancosSelects();toast('Eliminada','info');});}
-
-// ═══════════════════════════════════════
-// MATERIALES — actualizado con cuenta bancaria y no cierra en misma OC
-// ═══════════════════════════════════════
-let matOcItems=[]; // lista de materiales de la OC actual
-
-function openMatModal(id=null){
-  editId_mat.m = id;
-  matOcItems=[];
-  document.getElementById('matModalTitle').textContent = id ? 'Editar Material' : 'Nuevo Material';
-  const sel = document.getElementById('mSuplidor');
-  if(sel) sel.innerHTML = '<option value="">Sin suplidor</option>' + DB.suplidores.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('');
-  ['mNombre','mCosto','mStock','mCantidad','mRef'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
-  const fechaEl=document.getElementById('mFecha');
-  if(fechaEl) fechaEl.value=new Date().toISOString().split('T')[0];
-  const rb=document.getElementById('mPagoContado');
-  if(rb) rb.checked=true;
-  const cf=document.getElementById('mCreditoFields');
-  if(cf) cf.style.display='none';
-  const cuentaF=document.getElementById('mCuentaFields');
-  if(cuentaF) cuentaF.style.display='block';
-  const tc=document.getElementById('mTotalCalc');
-  if(tc) tc.textContent='RD$ 0';
-  populateBancosSelects();
-  if(id){
-    const m=DB.materiales.find(x=>x.id===id);
-    if(m){
-      document.getElementById('mNombre').value=m.nombre||'';
-      document.getElementById('mCategoria').value=m.categoria||'Pintura';
-      document.getElementById('mCosto').value=m.costo||'';
-      document.getElementById('mStock').value=m.stock||'';
-      if(fechaEl) fechaEl.value=m.fecha||new Date().toISOString().split('T')[0];
-    }
-  }
-  const ocCont=document.getElementById('mOcListContainer');
-  if(ocCont) ocCont.style.display='none';
-  openModal('matModal');
+function delBanco(id){
+  confirm2('¿Eliminar esta cuenta bancaria?',function(ok){
+    if(!ok) return;
+    DB.bancos = DB.bancos.filter(x=>x.id!==id);
+    window.fbDeleteDoc?.('bancos', id);
+    logBit?.('BANCOS','Cuenta eliminada',`ID: ${id}`);
+    renderBancos();
+    populateBancosSelects();
+    toast('Cuenta eliminada','info');
+  });
 }
 
 function mTogglePago(){
