@@ -476,9 +476,9 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
 .mt-3{margin-top:12px;} .mt-4{margin-top:16px;} .mb-3{margin-bottom:12px;}
 .hidden{display:none!important;}
 @media(max-width:768px){
-  .login-left{display:none!important;}
-  .login-right{width:100%!important;min-width:unset!important;padding:32px 24px!important;box-shadow:none!important;}
-  #loginScreen{flex-direction:column;}
+  .login-left{display:none!important;width:0!important;overflow:hidden!important;}
+  .login-right{width:100%!important;min-width:unset!important;padding:32px 24px!important;box-shadow:none!important;flex:1!important;}
+  #loginScreen{flex-direction:column!important;}
   .sidebar{transform:translateX(-100%);transition:transform .3s;z-index:200;}
   .sidebar.open{transform:translateX(0);}
   .topbar{left:0!important;}
@@ -562,7 +562,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
 
 <!-- LOGIN SPLIT SCREEN -->
 <div id="loginScreen">
-  <div class="login-left">
+  <div class="login-left" id="loginLeft">
     <div class="login-left-overlay">
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:24px;">
         <!-- Foto taller en tamaño real con marco elegante -->
@@ -1429,6 +1429,20 @@ function closeWelcome(){
   // Renderizar inmediatamente con datos disponibles (local o Firebase)
   showPage('dashboard');
 }
+// Ocultar panel izquierdo del login en móvil
+(function(){
+  function fixMobileLogin(){
+    var isMobile = window.innerWidth <= 768;
+    var left = document.getElementById('loginLeft');
+    var right = document.querySelector('.login-right');
+    if(left) left.style.cssText = isMobile ? 'display:none!important' : '';
+    if(right) right.style.cssText = isMobile ? 'width:100%;min-width:unset;flex:1;padding:40px 28px;box-shadow:none' : '';
+  }
+  document.addEventListener('DOMContentLoaded', fixMobileLogin);
+  window.addEventListener('resize', fixMobileLogin);
+  // Ejecutar también inmediatamente
+  if(document.readyState !== 'loading') fixMobileLogin();
+})();
 function doLogout(){CU=null;window.FB_ONLINE=false;window._fbActivo=false;window._fbCargado=false;
 // Exponer funciones de render para Firebase listeners
 window.renderVeh=function(){try{renderVeh();}catch(e){}};
