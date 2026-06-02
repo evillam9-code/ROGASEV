@@ -36,7 +36,8 @@
   function applyToDb(data){
     const db=window.DB;
     if(!db||!data)return;
-    COLS.forEach(col=>{if(data[col]&&data[col].length>0)db[col]=data[col];});
+    // Actualizar SIEMPRE — incluso si el array viene con menos elementos (por borrado)
+    COLS.forEach(col=>{if(col in data)db[col]=data[col];});
     if(data._cfg) db.config={...(db.config||{}),...data._cfg};
     if(data._nxt&&db.nxt) Object.assign(db.nxt,data._nxt);
     // Re-renderizar si usuario ya está logueado
@@ -54,6 +55,15 @@
         if(p!=='dashboard'&&window.renderDashboard)window.renderDashboard();
       }catch(e){}
     }
+  } empleados:window.renderEmp,suplidores:window.renderSup,
+          materiales:window.renderMateriales,cxp:window.renderCXP,
+          caja:window.renderCaja,recepcion:window.renderRecepcion,
+          bancos:()=>{window.renderBancos?.();window.populateBancosSelects?.();},
+          inventario:window.renderInventario,usuarios:window.renderUsers};
+        if(p&&m[p])m[p]();
+        if(p!=='dashboard'&&window.renderDashboard)window.renderDashboard();
+      }catch(e){}
+    }
   }
   window.applyFbData=function(){applyToDb(window._fbData);};
 
@@ -62,8 +72,9 @@
     COLS.forEach(col=>{
       fsdb.collection(col).onSnapshot(snap=>{
         if(!window.DB)return;
+        // Actualizar SIEMPRE — borrados también deben reflejarse
         const arr=snap.docs.map(d=>({...d.data(),_fbId:d.id}));
-        if(arr.length>0)window.DB[col]=arr;
+        window.DB[col]=arr;
         applyToDb({[col]:arr});
       },e=>console.warn('listener',col,e.message));
     });
@@ -102,7 +113,8 @@
     try{
       for(const col of COLS){
         const snap=await fsdb.collection(col).get();
-        if(!snap.empty) window._fbData[col]=snap.docs.map(d=>({...d.data(),_fbId:d.id}));
+        // Guardar siempre — array vacío también es un estado válido
+        window._fbData[col]=snap.docs.map(d=>({...d.data(),_fbId:d.id}));
       }
       const cs=await fsdb.collection('config').doc('main').get();
       if(cs.exists) window._fbData._cfg=cs.data();
