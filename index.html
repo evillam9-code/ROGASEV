@@ -36,26 +36,15 @@
   function applyToDb(data){
     const db=window.DB;
     if(!db||!data)return;
-    // Actualizar SIEMPRE — incluso si el array viene con menos elementos (por borrado)
     COLS.forEach(col=>{if(col in data)db[col]=data[col];});
     if(data._cfg) db.config={...(db.config||{}),...data._cfg};
     if(data._nxt&&db.nxt) Object.assign(db.nxt,data._nxt);
-    // Re-renderizar si usuario ya está logueado
     if(window.CU){
       try{
         const p=document.querySelector('.nav-item.active')?.getAttribute('data-page');
         const m={dashboard:window.renderDashboard,vehiculos:window.renderVeh,
           facturacion:window.renderFact,clientes:window.renderClients,
           empleados:window.renderEmp,suplidores:window.renderSup,
-          materiales:window.renderMateriales,cxp:window.renderCXP,
-          caja:window.renderCaja,recepcion:window.renderRecepcion,
-          bancos:()=>{window.renderBancos?.();window.populateBancosSelects?.();},
-          inventario:window.renderInventario,usuarios:window.renderUsers};
-        if(p&&m[p])m[p]();
-        if(p!=='dashboard'&&window.renderDashboard)window.renderDashboard();
-      }catch(e){}
-    }
-  } empleados:window.renderEmp,suplidores:window.renderSup,
           materiales:window.renderMateriales,cxp:window.renderCXP,
           caja:window.renderCaja,recepcion:window.renderRecepcion,
           bancos:()=>{window.renderBancos?.();window.populateBancosSelects?.();},
@@ -142,8 +131,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>ROGASEV Multiservice — Sistema de Pintura</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<!-- Firebase SDK via CDN compat (no módulo) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 (function(){
