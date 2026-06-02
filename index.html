@@ -1,5 +1,182 @@
-<!-- Firebase SDK via CDN compat (no módulo) -->
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  const cfg={
+    apiKey:"AIzaSyCBEDVG1Vk6nmlrz69Zx_vJeimuk4vg3Ag",
+    authDomain:"rogasev-2524e.firebaseapp.com",
+    projectId:"rogasev-2524e",
+    storageBucket:"rogasev-2524e.firebasestorage.app",
+    messagingSenderId:"871114095575",
+    appId:"1:871114095575:web:fb925b5a7e3af40dfce992"
+  };
+  if(!firebase.apps.length) firebase.initializeApp(cfg);
+  const db=firebase.firestore();
+  window.FB_ONLINE=false;
+
+  const COLS=['users','clientes','empleados','suplidores','vehiculos','facturas',
+              'caja','materiales','cxp','recepciones','bancos','kardex','bitacora'];
+
+  function clean(o){
+    return JSON.parse(JSON.stringify(o,(k,v)=>v===undefined?null:v));
+  }
+
+  // ── GUARDAR ──────────────────────────────────────────────────
+  window.fbSaveDoc=async function(col,item){
+    if(!window.FB_ONLINE)return;
+    try{
+      const id=String(item.id||item._fbId||Date.now());
+      await db.collection(col).doc(id).set(clean(item),{merge:true});
+      if(window.DB&&window.DB.nxt)
+        await db.collection('_meta').doc('nxt').set(clean(window.DB.nxt));
+    }catch(e){console.error('fbSave',col,e);}
+  };
+
+  // ── ELIMINAR ─────────────────────────────────────────────────
+  window.fbDeleteDoc=async function(col,id){
+    if(!window.FB_ONLINE)return;
+    try{await db.collection(col).doc(String(id)).delete();}
+    catch(e){console.error('fbDelete',col,e);}
+  };
+
+  window.fbSaveConfig=async function(){
+    if(!window.FB_ONLINE)return;
+    try{await db.collection('config').doc('main').set(clean(window.DB&&window.DB.config||{}));}
+    catch(e){}
+  };
+
+  // ── RENDERIZAR MÓDULO ACTIVO ─────────────────────────────────
+  function rerender(){
+    if(!window.CU||!window.DB)return;
+    try{
+      const p=document.querySelector('.nav-item.active')?.getAttribute('data-page');
+      const map={
+        dashboard:window.renderDashboard,
+        vehiculos:window.renderVeh,
+        facturacion:window.renderFact,
+        clientes:window.renderClients,
+        empleados:window.renderEmp,
+        suplidores:window.renderSup,
+        materiales:window.renderMateriales,
+        cxp:window.renderCXP,
+        caja:window.renderCaja,
+        recepcion:window.renderRecepcion,
+        bancos:function(){window.renderBancos&&window.renderBancos();window.populateBancosSelects&&window.populateBancosSelects();},
+        inventario:window.renderInventario,
+        usuarios:window.renderUsers,
+        bitacora:window.renderBitacora,
+        reportes:window.renderReportes
+      };
+      if(p&&map[p])map[p]();
+      if(p!=='dashboard'&&window.renderDashboard)window.renderDashboard();
+    }catch(e){}
+  }
+
+  // ── LISTENERS EN TIEMPO REAL ─────────────────────────────────
+  // Se inician UNA SOLA VEZ cuando Firebase está listo
+  function startListeners(){
+    if(window._listenersOn)return;
+    window._listenersOn=true;
+    console.log('🔴 Iniciando listeners en tiempo real...');
+    COLS.forEach(function(col){
+      db.collection(col).onSnapshot(function(snap){
+        if(!window.DB)return;
+        window.DB[col]=snap.docs.map(function(d){return Object.assign({},d.data(),{_fbId:d.id});});
+        console.log('🔄 Cambio detectado en:',col,window.DB[col].length,'docs');
+        rerender();
+      },function(e){console.warn('listener error',col,e.message);});
+    });
+    console.log('✅ Listeners activos para:',COLS.join(', '));
+  }
+  window.fbStartListeners=startListeners;
+
+  // ── CARGAR DATOS DE FIRESTORE ────────────────────────────────
+  async function loadData(){
+    try{
+      const loaded={};
+      for(var i=0;i<COLS.length;i++){
+        var col=COLS[i];
+        var snap=await db.collection(col).get();
+        loaded[col]=snap.docs.map(function(d){return Object.assign({},d.data(),{_fbId:d.id});});
+      }
+      var cs=await db.collection('config').doc('main').get();
+      if(cs.exists)loaded._cfg=cs.data();
+      var ns=await db.collection('_meta').doc('nxt').get();
+      if(ns.exists)loaded._nxt=ns.data();
+      window.FB_ONLINE=true;
+      console.log('✅ Firebase cargado:',Object.keys(loaded).join(', '));
+      return loaded;
+    }catch(e){
+      console.warn('Firebase no disponible:',e.message);
+      window.FB_ONLINE=false;
+      return null;
+    }
+  }
+
+  // ── APLICAR DATOS A DB ───────────────────────────────────────
+  function applyData(loaded){
+    var db2=window.DB;
+    if(!db2||!loaded)return;
+    COLS.forEach(function(col){
+      if(loaded[col])db2[col]=loaded[col];
+    });
+    if(loaded._cfg)db2.config=Object.assign({},db2.config||{},loaded._cfg);
+    if(loaded._nxt&&db2.nxt)Object.assign(db2.nxt,loaded._nxt);
+    console.log('✅ Datos aplicados a DB');
+  }
+  window.applyFbData=function(){applyData(window._fbLoaded_data);};
+
+  // ── SEED ─────────────────────────────────────────────────────
+  async function seed(){
+    for(var i=0;i<COLS.length;i++){
+      var col=COLS[i];
+      var snap=await db.collection(col).limit(1).get();
+      var local=window.DB&&window.DB[col];
+      if(snap.empty&&Array.isArray(local)&&local.length>0){
+        var batch=db.batch();
+        local.forEach(function(item){
+          var id=String(item.id||Date.now());
+          batch.set(db.collection(col).doc(id),clean(item));
+        });
+        await batch.commit();
+        console.log('Seed:',col,local.length,'docs');
+      }
+    }
+    var ns=await db.collection('_meta').doc('nxt').get();
+    if(!ns.exists&&window.DB&&window.DB.nxt)
+      await db.collection('_meta').doc('nxt').set(clean(window.DB.nxt));
+    console.log('Seed completado.');
+  }
+
+  // ── BADGE LOGIN ───────────────────────────────────────────────
+  function setBadge(online){
+    var lb=document.getElementById('loginFbBadge');
+    if(!lb)return;
+    lb.style.display='inline-flex';
+    lb.style.background=online?'#f0fdf4':'#fef9c3';
+    lb.style.border=online?'1.5px solid #86efac':'1.5px solid #fde047';
+    lb.style.color=online?'#15803d':'#a16207';
+    lb.innerHTML=online?'<span>✅</span>&nbsp;FIREBASE — EN LÍNEA':'<span>⚠️</span>&nbsp;Sin Firebase';
+  }
+
+  // ── INICIALIZAR AL CARGAR LA PÁGINA ──────────────────────────
+  window.addEventListener('load',async function(){
+    var loaded=await loadData();
+    setBadge(window.FB_ONLINE);
+    if(loaded){
+      window._fbLoaded_data=loaded;
+      if(window.DB)applyData(loaded);
+      await seed();
+      // INICIAR LISTENERS INMEDIATAMENTE — no esperar login
+      startListeners();
+    }
+    // Si usuario ya logueado (reload), re-renderizar
+    if(window.CU&&window.renderDashboard)window.renderDashboard();
+  });
+
+})();
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 (function(){
@@ -119,8 +296,15 @@
     // Aplicar a DB si ya existe
     if(window.DB) applyToDb(window._fbData);
     if(window.FB_ONLINE) await seed();
-    // Si usuario ya logueado, re-renderizar con datos frescos
-    if(window.CU&&window.renderDashboard) window.renderDashboard();
+    // Si usuario ya logueado, iniciar listeners y re-renderizar
+    if(window.CU){
+      if(window.FB_ONLINE&&window.fbStartListeners&&!window._listenersStarted){
+        window._listenersStarted=true;
+        window.fbStartListeners();
+        console.log('✅ Listeners iniciados (post-login)');
+      }
+      if(window.renderDashboard) window.renderDashboard();
+    }
   });
 })();
 </script>
@@ -1464,8 +1648,9 @@ function closeWelcome(){
       ind.innerHTML='<span>⚠️</span> Datos Locales';
     }
   }
-  // Iniciar listeners en tiempo real si Firebase está disponible
-  if(window.FB_ONLINE && window.fbStartListeners) window.fbStartListeners();
+  // Listeners ya iniciados por Firebase load event
+  // Llamar de nuevo es seguro — es idempotente
+  if(window.fbStartListeners)window.fbStartListeners();
   // Renderizar inmediatamente con datos disponibles (local o Firebase)
   showPage('dashboard');
 }
