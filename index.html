@@ -2,6 +2,203 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCBEDVG1Vk6nmlrz69Zx_vJeimuk4vg3Ag",
+  authDomain: "rogasev-2524e.firebaseapp.com",
+  projectId: "rogasev-2524e",
+  storageBucket: "rogasev-2524e.firebasestorage.app",
+  messagingSenderId: "871114095575",
+  appId: "1:871114095575:web:fb925b5a7e3af40dfce992"
+};
+firebase.initializeApp(firebaseConfig);
+const _fbDB = firebase.firestore();
+const _fbCol = 'rogasev'; // colección única
+
+window.FB_ONLINE = false;
+window._fbActivo = false;
+window._fbCargado = false;
+
+const FB_KEYS = ['users','clientes','empleados','suplidores','vehiculos','facturas',
+                 'caja','materiales','cxp','recepciones','bancos','kardex','bitacora','config'];
+
+// ── Guardar una clave en Firestore ────────────────────────────────
+async function fbGuardar(key){
+  try{
+    const val = key==='config' ? DB.config : DB[key];
+    await _fbDB.collection(_fbCol).doc(key).set({valor: JSON.stringify(val)});
+  }catch(e){ console.warn('fbGuardar error:', key, e.message); }
+}
+window.fbGuardar = fbGuardar;
+
+// ── Guardar múltiples claves (para saves individuales) ────────────
+window.fbSaveDoc = async function(colName, item){
+  if(!window._fbActivo) return;
+  // Actualizar el array en DB y guardar toda la colección
+  if(Array.isArray(DB[colName])){
+    const idx = DB[colName].findIndex(x=>x.id===item.id);
+    if(idx>=0) DB[colName][idx]=item; else DB[colName].push(item);
+  }
+  await fbGuardar(colName);
+};
+
+window.fbDeleteDoc = async function(colName, id){
+  if(!window._fbActivo) return;
+  if(Array.isArray(DB[colName])){
+    DB[colName] = DB[colName].filter(x=>x.id!=id);
+  }
+  await fbGuardar(colName);
+};
+
+window.fbSaveConfig = async function(){
+  if(!window._fbActivo) return;
+  await fbGuardar('config');
+};
+
+// ── Cargar todos los datos desde Firestore ────────────────────────
+async function fbCargar(){
+  let loaded = false;
+  for(const key of FB_KEYS){
+    try{
+      const snap = await _fbDB.collection(_fbCol).doc(key).get();
+      if(snap.exists){
+        const val = JSON.parse(snap.data().valor);
+        if(val !== null){
+          if(key==='config' && typeof val==='object'){
+            DB.config = Object.assign({}, DB.config, val);
+          } else if(key==='users' && Array.isArray(val) && val.length>0){
+            // Fusionar — Firebase tiene prioridad pero mantener admin local
+            const merged = [...val];
+            (DB.users||[]).forEach(lu=>{if(!merged.find(u=>u.id===lu.id))merged.push(lu);});
+            DB.users = merged;
+          } else if(Array.isArray(val)){
+            DB[key] = val; // reemplazar con datos de Firestore
+          }
+          loaded = true;
+        }
+      }
+    }catch(e){ console.warn('fbCargar error:', key, e.message); }
+  }
+  return loaded;
+}
+
+// ── Subir datos locales si Firestore está vacío ───────────────────
+async function fbSeed(){
+  let seeded = false;
+  for(const key of FB_KEYS){
+    try{
+      const snap = await _fbDB.collection(_fbCol).doc(key).get();
+      if(!snap.exists){
+        const val = key==='config' ? DB.config : DB[key];
+        if(val && (Array.isArray(val) ? val.length>0 : Object.keys(val).length>0)){
+          await _fbDB.collection(_fbCol).doc(key).set({valor: JSON.stringify(val)});
+          console.log('Seed:', key);
+          seeded = true;
+        }
+      }
+    }catch(e){ console.warn('fbSeed error:', key, e.message); }
+  }
+  if(seeded) console.log('✅ Datos iniciales subidos a Firestore');
+}
+
+// ── Forzar sincronización completa ────────────────────────────────
+window.forzarSincronizacion = async function(){
+  if(!window._fbActivo){toast('Sin conexión a Firebase','error');return;}
+  toast('Sincronizando...','info');
+  for(const key of FB_KEYS) await fbGuardar(key);
+  toast('✅ Sincronización completa','success');
+};
+
+// ── Listeners en tiempo real (por documento) ──────────────────────
+function fbActivarListeners(){
+  FB_KEYS.forEach(key=>{
+    _fbDB.collection(_fbCol).doc(key).onSnapshot(snap=>{
+      if(!snap.exists || !window._fbActivo) return;
+      try{
+        const val = JSON.parse(snap.data().valor);
+        if(val===null) return;
+        if(key==='config' && typeof val==='object'){
+          DB.config = Object.assign({}, DB.config, val);
+        } else if(key==='users' && Array.isArray(val)){
+          const merged=[...val];
+          (DB.users||[]).forEach(lu=>{if(!merged.find(u=>u.id===lu.id))merged.push(lu);});
+          DB[key]=merged.length>0?merged:DB[key];
+        } else if(Array.isArray(val)){
+          DB[key] = val;
+        }
+        // Re-renderizar módulo activo
+        const p = document.querySelector('.nav-item.active')?.getAttribute('data-page');
+        const renders = {
+          dashboard: window.renderDashboard,
+          vehiculos: window.renderVeh,
+          facturacion: window.renderFact,
+          clientes: window.renderClients,
+          empleados: window.renderEmp,
+          suplidores: window.renderSup,
+          materiales: window.renderMateriales,
+          cxp: window.renderCXP,
+          cxc: window.renderCXC,
+          caja: window.renderCaja,
+          recepcion: window.renderRecepcion,
+          bancos: function(){ window.renderBancos&&window.renderBancos(); window.populateBancosSelects&&window.populateBancosSelects(); },
+          inventario: window.renderInventario,
+          usuarios: window.renderUsers,
+          bitacora: window.renderBitacora,
+        };
+        if(p && renders[p]){
+          clearTimeout(window._fbRenderTimer);
+          window._fbRenderTimer = setTimeout(renders[p], 200);
+        }
+        // Siempre actualizar dashboard
+        if(p!=='dashboard' && window.renderDashboard){
+          clearTimeout(window._fbDashTimer);
+          window._fbDashTimer = setTimeout(window.renderDashboard, 500);
+        }
+      }catch(e){ console.warn('FB listener error:', key, e.message); }
+    });
+  });
+  console.log('✅ Firebase listeners activos — tiempo real ON');
+}
+
+// ── Inicializar Firebase (llamado en el login) ────────────────────
+window.fbIniciar = async function(){
+  try{
+    const loaded = await fbCargar();
+    window.FB_ONLINE = true;
+    window._fbActivo = true;
+    if(loaded){
+      console.log('✅ Firebase cargado — datos sincronizados');
+      window._fbCargado = true;
+      fbActivarListeners();
+    } else {
+      // Firestore vacío — subir datos locales
+      await fbSeed();
+      window._fbCargado = true;
+      fbActivarListeners();
+      console.log('✅ Firebase inicializado con datos locales');
+    }
+    // Actualizar badge
+    const lb = document.getElementById('loginFbBadge');
+    if(lb){
+      lb.style.display='inline-flex';
+      lb.style.background='#f0fdf4';lb.style.border='1.5px solid #86efac';lb.style.color='#15803d';
+      lb.innerHTML='<span>✅</span>&nbsp;FIREBASE — EN LÍNEA';
+    }
+  }catch(e){
+    console.warn('Firebase error:', e.message);
+    window.FB_ONLINE = false;
+    window._fbActivo = false;
+    const lb = document.getElementById('loginFbBadge');
+    if(lb){
+      lb.style.display='inline-flex';
+      lb.style.background='#fef9c3';lb.style.border='1.5px solid #fde047';lb.style.color='#a16207';
+      lb.innerHTML='<span>⚠️</span>&nbsp;Sin Firebase';
+    }
+    throw e; // propagar para que doLogin lo maneje
+  }
+};
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
 (function(){
   const cfg={
     apiKey:"AIzaSyCBEDVG1Vk6nmlrz69Zx_vJeimuk4vg3Ag",
@@ -127,26 +324,34 @@
   }
   window.applyFbData=function(){applyData(window._fbLoaded_data);};
 
-  // ── SEED ─────────────────────────────────────────────────────
+  // ── SEED: subir datos locales a Firestore ────────────────────
+  // Solo corre UNA VEZ (controlado por flag en Firestore)
   async function seed(){
-    for(var i=0;i<COLS.length;i++){
-      var col=COLS[i];
-      var snap=await db.collection(col).limit(1).get();
-      var local=window.DB&&window.DB[col];
-      if(snap.empty&&Array.isArray(local)&&local.length>0){
+    try{
+      // Verificar si ya se hizo seed completo
+      var flagSnap=await db.collection('_meta').doc('seeded_v2').get();
+      if(flagSnap.exists){console.log('Seed ya completado anteriormente.');return;}
+      
+      console.log('🌱 Iniciando seed completo...');
+      for(var i=0;i<COLS.length;i++){
+        var col=COLS[i];
+        var local=window.DB&&window.DB[col];
+        if(!Array.isArray(local)||local.length===0)continue;
         var batch=db.batch();
         local.forEach(function(item){
           var id=String(item.id||Date.now());
           batch.set(db.collection(col).doc(id),clean(item));
         });
         await batch.commit();
-        console.log('Seed:',col,local.length,'docs');
+        console.log('✅ Seed:',col,local.length,'docs');
       }
-    }
-    var ns=await db.collection('_meta').doc('nxt').get();
-    if(!ns.exists&&window.DB&&window.DB.nxt)
-      await db.collection('_meta').doc('nxt').set(clean(window.DB.nxt));
-    console.log('Seed completado.');
+      // Guardar nxt
+      if(window.DB&&window.DB.nxt)
+        await db.collection('_meta').doc('nxt').set(clean(window.DB.nxt));
+      // Marcar seed como completado
+      await db.collection('_meta').doc('seeded_v2').set({done:true,ts:new Date().toISOString()});
+      console.log('✅ Seed completado.');
+    }catch(e){console.error('Seed error:',e);}
   }
 
   // ── BADGE LOGIN ───────────────────────────────────────────────
@@ -1582,13 +1787,46 @@ document.addEventListener('DOMContentLoaded',()=>{
 function doLogin(){
   const u=document.getElementById('loginUser').value.trim();
   const p=document.getElementById('loginPass').value.trim();
-  // Buscar en DB (que puede ser local o cargada de Firestore)
+  // Primero verificar credenciales con datos locales
   const found=DB.users.find(x=>x.user===u&&x.pass===p&&x.estado==='activo');
   if(!found){
     document.getElementById('loginError').style.display='block';
     return;
   }
   CU=found;
+  // Mostrar pantalla de carga
+  document.getElementById('loginScreen').style.display='none';
+  const wm=document.getElementById('welcomeModal');
+  wm.style.display='flex';
+  document.getElementById('wName').textContent=found.nombre;
+  const wRolLabels={admin:'👑 Administrador',dueno:'🏠 Dueño',secretaria:'💼 Secretaria',
+    pintor:'🎨 Pintor',desabollador:'🔨 Desabollador',tecnico:'🔧 Técnico',
+    recepcionista:'📋 Recepcionista',operador:'⚙️ Operador'};
+  document.getElementById('wRole').textContent=wRolLabels[found.rol]||found.rol;
+  // Iniciar Firebase — carga datos frescos antes de entrar
+  const _fbTimeout = setTimeout(()=>{
+    // Si Firebase tarda más de 6 segundos, entrar con datos locales
+    if(!window._fbCargado){
+      console.warn('Firebase tardó demasiado — entrando con datos locales');
+      closeWelcome();
+    }
+  }, 6000);
+  window.fbIniciar().then(()=>{
+    clearTimeout(_fbTimeout);
+    closeWelcome();
+  }).catch(()=>{
+    clearTimeout(_fbTimeout);
+    // Firebase falló — entrar de todas formas con datos locales
+    closeWelcome();
+  });
+  return; // evitar que closeWelcome corra dos veces
+}
+function _doLoginOriginal(){
+  const u2=document.getElementById('loginUser').value.trim();
+  const p2=document.getElementById('loginPass').value.trim();
+  const found2=DB.users.find(x=>x.user===u2&&x.pass===p2&&x.estado==='activo');
+  if(!found2){document.getElementById('loginError').style.display='block';return;}
+  CU=found2;
   // Normalizar permisos para compatibilidad total
   // Si permisos es objeto (legacy), convertir a array simple
   if(CU.permisos && !Array.isArray(CU.permisos)){
@@ -1645,16 +1883,32 @@ function closeWelcome(){
       ind.innerHTML='<span style="font-size:.85rem;">✅</span> FIREBASE <span style="font-size:.67rem;background:#dcfce7;border-radius:10px;padding:1px 6px;margin-left:2px;">EN LÍNEA</span>';
     }else{
       ind.style.background='#fef9c3';ind.style.border='1.5px solid #fde047';ind.style.color='#a16207';
-      ind.innerHTML='<span>⚠️</span> Datos Locales';
+      ind.innerHTML='<span>⚠️</span> Sin Firebase';
     }
   }
-  // Listeners ya iniciados por Firebase load event
-  // Llamar de nuevo es seguro — es idempotente
-  if(window.fbStartListeners)window.fbStartListeners();
+  // Listeners activados por fbIniciar en el login
   // Renderizar inmediatamente con datos disponibles (local o Firebase)
   showPage('dashboard');
 }
-function doLogout(){CU=null;document.getElementById('mainApp').style.display='none';document.getElementById('loginScreen').style.display='flex';['loginUser','loginPass'].forEach(id=>document.getElementById(id).value='');document.getElementById('loginError').style.display='none';const fbInd=document.getElementById('fbIndicator');if(fbInd)fbInd.style.display='none';}
+function doLogout(){CU=null;window.FB_ONLINE=false;window._fbActivo=false;window._fbCargado=false;
+// Exponer funciones de render para Firebase listeners
+window.renderVeh=function(){try{renderVeh();}catch(e){}};
+window.renderFact=function(){try{renderFact();}catch(e){}};
+window.renderClients=function(){try{renderClients();}catch(e){}};
+window.renderEmp=function(){try{renderEmp();}catch(e){}};
+window.renderSup=function(){try{renderSup();}catch(e){}};
+window.renderMateriales=function(){try{renderMateriales();}catch(e){}};
+window.renderCXP=function(){try{renderCXP();}catch(e){}};
+window.renderCXC=function(){try{renderCXC();}catch(e){}};
+window.renderCaja=function(){try{renderCaja();}catch(e){}};
+window.renderRecepcion=function(){try{renderRecepcion();}catch(e){}};
+window.renderBancos=function(){try{renderBancos();populateBancosSelects();}catch(e){}};
+window.renderInventario=function(){try{renderInventario();}catch(e){}};
+window.renderUsers=function(){try{renderUsers();}catch(e){}};
+window.renderDashboard=function(){try{renderDashboard();}catch(e){}};
+window.renderBitacora=function(){try{renderBitacora();}catch(e){}};
+window.renderReportes=function(){try{renderReportes();}catch(e){}};
+window.populateBancosSelects=function(){try{populateBancosSelects();}catch(e){}};document.getElementById('mainApp').style.display='none';document.getElementById('loginScreen').style.display='flex';['loginUser','loginPass'].forEach(id=>document.getElementById(id).value='');document.getElementById('loginError').style.display='none';const fbInd=document.getElementById('fbIndicator');if(fbInd)fbInd.style.display='none';}
 function applyPerms(){const a=CU.rol==='admin';document.querySelectorAll('.admin-only').forEach(el=>el.style.display=a?'':'none');document.querySelectorAll('.nav-item[data-page]').forEach(el=>{const p=el.getAttribute('data-page');el.style.display=(p==='dashboard'||a||CU.modulos.includes(p))?'flex':'none';});}
 function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+name)?.classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelector(`.nav-item[data-page="${name}"]`)?.classList.add('active');const t={dashboard:'Dashboard',vehiculos:'Órdenes de Trabajo',facturacion:'Facturación',clientes:'Clientes',empleados:'Empleados',suplidores:'Suplidores',materiales:'Materiales',cxp:'CXP — Por Pagar',cxc:'CXC — Por Cobrar',caja:'Caja',reportes:'Reportes',inventario:'Inventario — Kardex',recepcion:'Recepción de Vehículo',bitacora:'Bitácora del Sistema',config:'Configuración del Sistema',usuarios:'Usuarios',bancos:'Cuentas Bancarias'};document.getElementById('topbarTitle').textContent=t[name]||name;const r={dashboard:renderDashboard,vehiculos:()=>renderVeh(),facturacion:()=>renderFact(),clientes:()=>renderClients(),empleados:()=>renderEmp(),suplidores:()=>renderSup(),materiales:()=>renderMateriales(),cxp:()=>renderCXP(),cxc:()=>{showPage('facturacion');setTimeout(()=>switchFactTab('cobros'),50);},caja:()=>renderCaja(),reportes:renderReportes,inventario:renderInventario,recepcion:renderRecepcion,bitacora:()=>renderBitacora(),config:renderConfig,usuarios:renderUsers,bancos:()=>{renderBancos();populateBancosSelects();}};r[name]?.();}
 function openModal(id){document.getElementById(id).classList.add('open');}
