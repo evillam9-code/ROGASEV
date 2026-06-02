@@ -1309,14 +1309,34 @@ document.addEventListener('DOMContentLoaded',()=>{
 function doLogin(){
   const u=document.getElementById('loginUser').value.trim();
   const p=document.getElementById('loginPass').value.trim();
-  // Primero verificar credenciales con datos locales
+  if(!u||!p){document.getElementById('loginError').style.display='block';return;}
+
+  // Mostrar "Verificando..." mientras carga Firebase
+  const btnLogin=document.querySelector('#loginScreen button');
+  if(btnLogin){btnLogin.disabled=true;btnLogin.textContent='⏳ Verificando...';}
+  document.getElementById('loginError').style.display='none';
+
+  // Cargar Firebase primero para tener usuarios actualizados
+  window.fbIniciar().then(()=>{
+    _verificarLogin(u,p);
+  }).catch(()=>{
+    // Firebase falló — verificar con datos locales
+    _verificarLogin(u,p);
+  }).finally(()=>{
+    if(btnLogin){btnLogin.disabled=false;btnLogin.innerHTML='🔑 INICIAR SESIÓN';}
+  });
+}
+
+function _verificarLogin(u,p){
+  // Buscar en DB (ya actualizado con Firebase si conectó)
   const found=DB.users.find(x=>x.user===u&&x.pass===p&&x.estado==='activo');
   if(!found){
     document.getElementById('loginError').style.display='block';
+    const btnLogin=document.querySelector('#loginScreen button');
+    if(btnLogin){btnLogin.disabled=false;btnLogin.innerHTML='🔑 INICIAR SESIÓN';}
     return;
   }
   CU=found;
-  // Mostrar pantalla de carga
   document.getElementById('loginScreen').style.display='none';
   const wm=document.getElementById('welcomeModal');
   wm.style.display='flex';
@@ -1325,23 +1345,7 @@ function doLogin(){
     pintor:'🎨 Pintor',desabollador:'🔨 Desabollador',tecnico:'🔧 Técnico',
     recepcionista:'📋 Recepcionista',operador:'⚙️ Operador'};
   document.getElementById('wRole').textContent=wRolLabels[found.rol]||found.rol;
-  // Iniciar Firebase — carga datos frescos antes de entrar
-  const _fbTimeout = setTimeout(()=>{
-    // Si Firebase tarda más de 6 segundos, entrar con datos locales
-    if(!window._fbCargado){
-      console.warn('Firebase tardó demasiado — entrando con datos locales');
-      closeWelcome();
-    }
-  }, 6000);
-  window.fbIniciar().then(()=>{
-    clearTimeout(_fbTimeout);
-    closeWelcome();
-  }).catch(()=>{
-    clearTimeout(_fbTimeout);
-    // Firebase falló — entrar de todas formas con datos locales
-    closeWelcome();
-  });
-  return; // evitar que closeWelcome corra dos veces
+  closeWelcome();
 }
 function _doLoginOriginal(){
   const u2=document.getElementById('loginUser').value.trim();
