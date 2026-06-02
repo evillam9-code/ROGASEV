@@ -488,11 +488,29 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
   .modal{max-width:100%;margin:8px;}
   table{font-size:.75rem;}
   td,th{padding:7px 8px;}
-  .page-header{flex-direction:column;align-items:flex-start;}
+  .page-header{flex-direction:column;align-items:flex-start;gap:8px;}
+  .page-header>div:last-child{display:flex;flex-wrap:wrap;gap:6px;width:100%;}
+  /* Colapsar grids de formularios a una columna */
+  .form-row{grid-template-columns:1fr!important;}
+  [class*="c2"],[class*="c3"],[class*="c4"]{grid-template-columns:1fr!important;}
+  .two-col{grid-template-columns:1fr!important;}
+  /* Tablas con scroll horizontal */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Botones más grandes para touch */
+  .btn{min-height:38px;}
+  /* Cards sin padding excesivo */
+  .card{padding:12px;}
+  /* Topbar compacto */
+  .topbar-badge{display:none;}
+  .topbar-right{gap:6px;}
 }
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr;}
   .topbar-badge{display:none;}
+  /* Una columna total en pantallas pequeñas */
+  .form-row,[class*="c2"],[class*="c3"],[class*="c4"]{grid-template-columns:1fr!important;}
+  .modal{margin:0;border-radius:12px 12px 0 0;position:fixed;bottom:0;left:0;right:0;max-height:90vh;overflow-y:auto;}
+  .page-header .btn{font-size:.75rem;padding:6px 10px;}
 }
 @media print{.sidebar,.topbar,.modal-overlay,.btn,.btn-icon{display:none!important;}.content{margin:0!important;}.inv-preview{box-shadow:none!important;border:none!important;}}
 
