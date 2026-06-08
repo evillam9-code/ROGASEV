@@ -3829,7 +3829,7 @@ function printPrefactura(id){
         <div class="pf-firma"><div class="pf-firma-line">ENTREGADO POR</div><div class="pf-firma-name">${cfg.nombre}</div></div>
         <div class="pf-firma"><div class="pf-firma-line">CLIENTE / DUEÑO DEL VEHÍCULO</div><div class="pf-firma-name">${cl?.nombre||''}</div></div>
       </div>
-      <div class="pf-copy">${titulo==='PRE-FACTURA / HOJA DE RECEPCIÓN'?'📋 COPIA TALLER':'📋 COPIA CLIENTE'}</div>
+      <div class="pf-copy">${titulo==='COTIZACIÓN'?'📋 COPIA TALLER':'📋 COPIA CLIENTE'}</div>
     </div>`;
 
   const win=window.open('','_blank','width=820,height=800');
@@ -3873,7 +3873,7 @@ function printPrefactura(id){
         .no-print{display:none;}
       }
     </style></head><body>
-    ${bloque('PRE-FACTURA / HOJA DE RECEPCIÓN')}
+    ${bloque('COTIZACIÓN')}
     <hr class="page-break">
     ${bloque('COPIA CLIENTE')}
     <div class="no-print" style="text-align:center;margin-top:16px;">
@@ -3968,7 +3968,7 @@ function buildMsgText(id){
   const tipoLabel={carro:'Carro/Sedán',suv:'Jeep/SUV',camioneta:'Camioneta'};
   let msg=`*${cfg.nombre}*
 `;
-  msg+=`📋 *PRE-FACTURA / HOJA DE RECEPCIÓN*
+  msg+=`📋 *COTIZACIÓN*
 `;
   msg+=`N° ${String(r.id).padStart(4,'0')} — Fecha: ${fecha}
 
