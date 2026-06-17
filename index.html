@@ -173,6 +173,47 @@ function fbActivarListeners(){
 }
 
 // ── Inicializar Firebase (llamado en el login) ────────────────────
+// ── Corregir IDs duplicados en recepciones ─────────────────────────
+async function fixRecepcionesIds(){
+  if(!DB.recepciones || DB.recepciones.length === 0) return;
+  // Detectar si hay duplicados
+  const ids = DB.recepciones.map(r => r.id);
+  const uniqueIds = new Set(ids);
+  if(uniqueIds.size === ids.length) {
+    // Sin duplicados — solo asegurar que DB.nxt.rp sea mayor al max
+    const maxId = Math.max(...ids.filter(x=>typeof x==='number' && !isNaN(x)), 0);
+    if(!DB.nxt) DB.nxt = {};
+    DB.nxt.rp = Math.max(DB.nxt.rp||1, maxId + 1);
+    return;
+  }
+  console.log('⚠️ IDs duplicados en recepciones — corrigiendo...');
+  // Ordenar por fecha para asignar IDs cronológicamente
+  const sorted = [...DB.recepciones].sort((a,b)=>{
+    const da = new Date(a.fecha||'2000-01-01');
+    const db2 = new Date(b.fecha||'2000-01-01');
+    if(da < db2) return -1;
+    if(da > db2) return 1;
+    return (a.id||0) - (b.id||0);
+  });
+  let nextId = 1;
+  const updated = [];
+  for(const r of sorted){
+    const newR = {...r, id: nextId++};
+    updated.push(newR);
+  }
+  DB.recepciones = updated;
+  if(!DB.nxt) DB.nxt = {};
+  DB.nxt.rp = nextId;
+  // Guardar en Firebase
+  if(window._fbActivo){
+    try{
+      await fbGuardar('recepciones');
+      await fbGuardar('nxt');
+      console.log('✅ IDs de recepciones corregidos y guardados en Firebase');
+    }catch(e){ console.warn('Error guardando fix IDs:', e.message); }
+  }
+}
+
 window.fbIniciar = async function(){
   try{
     const loaded = await fbCargar();
@@ -180,6 +221,8 @@ window.fbIniciar = async function(){
     window._fbActivo = true;
     if(loaded){
       console.log('✅ Firebase cargado — datos sincronizados');
+      // ── Fix IDs duplicados en recepciones ──────────────────────
+      await fixRecepcionesIds();
       window._fbCargado = true;
       fbActivarListeners();
     } else {
@@ -785,7 +828,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
               <div class="search-box"><input type="text" placeholder="Buscar..." oninput="renderVeh('',this.value)"></div>
             </div>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>#</th><th>Chasis</th><th>Vehículo</th><th>Cliente</th><th>Técnico</th><th>Fecha</th><th>Entrega</th><th>M.O.</th><th>Ajustes</th><th>Estatus</th><th>Acciones</th></tr></thead><tbody id="vehTable"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th># ORDEN</th><th>Chasis</th><th>Vehículo</th><th>Cliente</th><th>Técnico</th><th>Fecha</th><th>Entrega</th><th>M.O.</th><th>Ajustes</th><th>Estatus</th><th>Acciones</th></tr></thead><tbody id="vehTable"></tbody></table></div>
         </div>
       </div>
       <!-- Tab: Recepciones → Órdenes -->
@@ -795,7 +838,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
             <span class="card-title">Recepciones Pendientes de Asignar</span>
             <div style="font-size:.8rem;color:var(--text2);">Recepciones sin orden de trabajo activa</div>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>#</th><th>Fecha</th><th>Vehículo</th><th>Cliente</th><th>Tipo</th><th>Servicios</th><th>Presupuesto</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="vehRecepTable"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th># ORDEN</th><th>Fecha</th><th>Vehículo</th><th>Cliente</th><th>Tipo</th><th>Servicios</th><th>Presupuesto</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="vehRecepTable"></tbody></table></div>
         </div>
       </div>
       <!-- Tab: Materiales usados por orden -->
@@ -1022,7 +1065,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
         </div>
         <div class="table-wrap">
           <table><thead><tr>
-            <th>#</th><th>Fecha</th><th>Vehículo</th><th>Cliente</th><th>Tipo</th>
+            <th># ORDEN</th><th>Fecha</th><th>Vehículo</th><th>Cliente</th><th>Tipo</th>
             <th>Trabajos</th><th>Presupuesto</th><th>Estado</th><th>Acciones</th>
           </tr></thead><tbody id="recepTable"></tbody></table>
         </div>
@@ -1077,48 +1120,108 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
 </div>
 <!-- MODAL VEHICULO -->
 <div class="modal-overlay" id="vehModal">
-  <div class="modal modal-lg">
-    <div class="modal-header"><span class="modal-title" id="vehModalTitle">Nueva Orden de Trabajo</span><button class="modal-close" onclick="closeModal('vehModal')">✕</button></div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-row"><label class="form-label">Chasis</label><input class="form-control" id="vChasis" placeholder="Número de chasis"></div>
-        <div class="form-row"><label class="form-label">Vehículo</label><input class="form-control" id="vNombre" placeholder="Ej: KIA SORENTO ROJO 2020"></div>
-        <div class="form-row"><label class="form-label">Cliente</label><select class="form-control" id="vCliente"></select></div>
-        <div class="form-row"><label class="form-label">Color Pintura</label><input class="form-control" id="vColor" placeholder="Ej: NEGRO PERLA"></div>
-        <div class="form-row"><label class="form-label">Fecha Ingreso</label><input type="date" class="form-control" id="vFecha"></div>
-        <div class="form-row"><label class="form-label">Estatus</label><select class="form-control" id="vEstatus"><option>EN PROCESO</option><option>PARA ENTREGA</option><option>ENTREGADO</option></select></div>
-        <div class="form-row"><label class="form-label">Monto M.O. (RD$)</label><input type="number" class="form-control" id="vMonto" placeholder="0.00"></div>
-        <div class="form-row"><label class="form-label">Monto Pagado (RD$)</label><input type="number" class="form-control" id="vMontoPag" placeholder="0.00"></div>
-      </div>
-      <div class="vehicle-diagram">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div class="diagram-title" style="margin-bottom:0;">🔧 Piezas del Vehículo</div>
-          <div style="font-size:.76rem;color:var(--text2);">Click = asignar tipo · Click derecho = aprobar</div>
-        </div>
-        <div class="diagram-tabs">
-          <div class="diagram-tab active" onclick="setWT('paint',this)">🎨 Pintura</div>
-          <div class="diagram-tab" onclick="setWT('dent',this)">🔨 Desabolladura</div>
-          <div class="diagram-tab" onclick="setWT('prep',this)">⚙️ Preparación</div>
-          <div class="diagram-tab" onclick="setWT('brill',this)">✨ Brillado</div>
-        </div>
-        <div class="parts-grid" id="partsGrid"></div>
-        <div class="diagram-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--primary)"></div>Pintura</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--warning)"></div>Desabolladura</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--info)"></div>Preparación</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div>Brillado</div>
-        </div>
-      </div>
-      <div class="ajuste-panel">
-        <div class="ajuste-header"><span class="ajuste-title">👷 Asignación de Empleados y Ajustes</span><button class="btn btn-sm btn-secondary" onclick="addEmpRow()">+ Agregar</button></div>
-        <table class="ajuste-table">
-          <thead><tr><th>Empleado</th><th>Tipo Trabajo</th><th>Descripción Ajuste</th><th>Monto (RD$)</th><th>Estado</th><th></th></tr></thead>
-          <tbody id="empAjusteBody"></tbody>
-        </table>
-      </div>
-      <div class="form-row"><label class="form-label">Observaciones</label><textarea class="form-control" id="vObs"></textarea></div>
+  <div class="modal modal-lg" style="max-width:900px;">
+    <div class="modal-header">
+      <span class="modal-title" id="vehModalTitle">Nueva Orden de Trabajo</span>
+      <button class="modal-close" onclick="closeModal('vehModal')">✕</button>
     </div>
-    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('vehModal')">Cancelar</button><button class="btn btn-primary" onclick="saveVeh()">💾 Guardar Orden</button></div>
+    <div class="modal-body">
+
+      <!-- Datos básicos -->
+      <div style="background:#f8fafc;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.95rem;color:var(--text);margin-bottom:10px;">📝 Datos del Vehículo</div>
+        <div class="form-grid" style="grid-template-columns:repeat(3,1fr);">
+          <div class="form-row"><label class="form-label">Cliente *</label><select class="form-control" id="vCliente"></select></div>
+          <div class="form-row"><label class="form-label">Vehículo *</label><input class="form-control" id="vNombre" placeholder="Ej: TOYOTA RAV4 NEGRO 2020"></div>
+          <div class="form-row"><label class="form-label">Chasis</label><input class="form-control" id="vChasis" placeholder="Número de chasis"></div>
+          <div class="form-row"><label class="form-label">Color a Pintar</label><input class="form-control" id="vColor" placeholder="Ej: NEGRO PERLA"></div>
+          <div class="form-row"><label class="form-label">Fecha Ingreso</label><input type="date" class="form-control" id="vFecha"></div>
+          <div class="form-row"><label class="form-label">Tipo Vehículo</label>
+            <select class="form-control" id="vTipoVeh">
+              <option value="carro">🚗 Carro / Sedán</option>
+              <option value="suv">🚙 Jeep / SUV</option>
+              <option value="camioneta">🛻 Camioneta / Pick-up</option>
+            </select>
+          </div>
+          <div class="form-row"><label class="form-label">Tiempo Estimado</label>
+            <select class="form-control" id="vTiempo">
+              <option>1-2 días</option><option>3-5 días</option><option>1 semana</option>
+              <option>2 semanas</option><option>1 mes</option><option>A convenir</option>
+            </select>
+          </div>
+          <div class="form-row"><label class="form-label">Fecha Entrega Est.</label><input type="date" class="form-control" id="vFechaEntrega"></div>
+          <div class="form-row"><label class="form-label">Estatus</label>
+            <select class="form-control" id="vEstatus">
+              <option>EN PROCESO</option><option>PARA ENTREGA</option><option>ENTREGADO</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matriz dinámica -->
+      <div style="background:#f8fafc;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.95rem;color:var(--text);">🔧 Matriz de Trabajos</div>
+          <button class="btn btn-sm btn-primary" onclick="vAddFila()" style="font-size:.78rem;">+ Agregar Trabajo</button>
+        </div>
+        <div class="table-wrap">
+          <table style="font-size:.82rem;width:100%;">
+            <thead><tr style="background:#e8edf5;">
+              <th style="padding:8px 10px;text-align:left;">Tipo de Trabajo</th>
+              <th style="padding:8px 10px;text-align:left;">Pieza</th>
+              <th style="padding:8px 10px;text-align:left;">Técnico</th>
+              <th style="padding:8px 10px;text-align:left;">Precio Cliente (RD$)</th>
+              <th style="padding:8px 4px;"></th>
+            </tr></thead>
+            <tbody id="vMatrizTbl"></tbody>
+          </table>
+        </div>
+        <div style="font-size:.75rem;color:var(--text2);margin-top:6px;">💡 Puedes escribir cualquier tipo de trabajo o pieza personalizada</div>
+      </div>
+
+      <!-- Presupuesto + Notas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="background:#f8fafc;border-radius:10px;padding:14px;">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.9rem;margin-bottom:10px;color:var(--text);">💰 Presupuesto</div>
+          <div class="form-row"><label class="form-label">Descuento (RD$)</label><input type="number" class="form-control" id="vDcto" placeholder="0" oninput="vCalcTotal()"></div>
+          <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;">
+            <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+              <div><div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.85rem;color:#15803d;">ITBIS 18%</div><div style="font-size:.7rem;color:#16a34a;">Si el cliente requiere comprobante fiscal</div></div>
+              <label class="toggle"><input type="checkbox" id="vItbisToggle" onchange="vCalcTotal()"><span class="toggle-slider"></span></label>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px;"><span>Subtotal:</span><span id="vTMo">RD$ 0</span></div>
+            <div id="vItbisRow" style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--success);margin-bottom:4px;opacity:.4;"><span>ITBIS 18%:</span><span id="vTItbis">No aplica</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--danger);margin-bottom:6px;"><span>Descuento:</span><span id="vTDcto">RD$ 0</span></div>
+            <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem;border-top:1px solid var(--border);padding-top:6px;color:var(--primary);"><span>TOTAL EST.:</span><span id="vTotal">RD$ 0</span></div>
+          </div>
+          <!-- Hidden fields for backward compat -->
+          <input type="number" id="vMonto" style="display:none;">
+          <input type="number" id="vMontoPag" style="display:none;">
+        </div>
+        <div style="background:#f8fafc;border-radius:10px;padding:14px;">
+          <div class="form-row"><label class="form-label">Observaciones</label><textarea class="form-control" id="vObs" rows="4" placeholder="Notas adicionales..."></textarea></div>
+          <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:12px;margin-top:10px;">
+            <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.88rem;margin-bottom:8px;">💳 Pago Inicial</div>
+            <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+              <label style="font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="vPagoTipo" value="ninguno" checked onchange="vTogglePago()"> Sin pago inicial</label>
+              <label style="font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="vPagoTipo" value="parcial" onchange="vTogglePago()"> Adelanto parcial</label>
+              <label style="font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="vPagoTipo" value="total" onchange="vTogglePago()"> Pago total</label>
+            </div>
+            <div id="vPagoFields" style="display:none;">
+              <div class="form-row"><label class="form-label">Monto (RD$)</label><input type="number" class="form-control" id="vPagoMonto" placeholder="0.00"></div>
+              <div class="form-row"><label class="form-label">Forma de Pago</label><select class="form-control" id="vPagoForma"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option><option>Cheque</option></select></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Ajuste panel hidden for compat -->
+      <tbody id="empAjusteBody" style="display:none;"></tbody>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('vehModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveVeh()">💾 Guardar Orden</button>
+    </div>
   </div>
 </div>
 
@@ -1310,6 +1413,14 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
 
 <div id="toast"></div>
 <script>
+// ─── Tipos y piezas disponibles (definidos aquí para disponibilidad global) ───
+window.RP_TIPOS_DEFAULT = window.RP_TIPOS_DEFAULT || ['Desarmar','Desabollar','Preparar','Pintar','Brillar'];
+window.RP_PIEZAS_DEFAULT = window.RP_PIEZAS_DEFAULT || ['BONETE','CAPOTA','TECHO','MALETERO','COMPUERTA',
+  'PUERTA DEL. L','PUERTA DEL. R','PUERTA TRAS. L','PUERTA TRAS. R',
+  'GUARDA LODO DEL. L','GUARDA LODO DEL. R','GUARDA LODO TRAS. L','GUARDA LODO TRAS. R',
+  'BUMPER DEL.','BUMPER TRAS.','FRENTIR','ESTRIBO L','ESTRIBO R',
+  'BAJANTE L','BAJANTE R','AROS','RETROVISORES','ENTRADA DEL. L','ENTRADA DEL. R'];
+
 window.DB=window.DB||{};let DB={users:[{id:1,user:'admin',pass:'admin123',nombre:'Administrador',rol:'admin',modulos:['dashboard','vehiculos','facturacion','clientes','empleados','suplidores','caja','reportes','usuarios'],estado:'activo'},{id:2,user:'operador',pass:'op123',nombre:'Operador General',rol:'operador',modulos:['vehiculos','facturacion','clientes','caja'],estado:'activo'}],clientes:[{id:1,nombre:'KENUMAR AUTO IMPORT',rnc:'1231312313',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-777-7777',tel2:'829-123-4567'},{id:2,nombre:'ZYRLE AUTO',rnc:'',dir:'AUT. DUARTE',ciudad:'SANTIAGO',tel1:'809-326-2222',tel2:''},{id:3,nombre:'ANDY & JULIAN AUTO',rnc:'',dir:'AUTOPISTA DUARTE KM 12',ciudad:'SANTIAGO',tel1:'8298300202',tel2:''},{id:4,nombre:'KENUAN AUTOSALE',rnc:'',dir:'AUTOPISTA DUARTE KM 13',ciudad:'SANTIAGO',tel1:'8292631406',tel2:''},{id:5,nombre:'RIVAS Y TAPIA AUTO',rnc:'',dir:'AUTOPISTA DUARTE',ciudad:'SANTIAGO',tel1:'8093086215',tel2:''},{id:6,nombre:'TESORO IMPORT',rnc:'',dir:'AUTOPISTA DUARTE KM 14',ciudad:'SANTIAGO',tel1:'8093539874',tel2:''},{id:7,nombre:'IMPORT INVERSIONES',rnc:'130377022',dir:'SANTO DOMINGO',ciudad:'SANTO DOMINGO',tel1:'8098385232',tel2:''},{id:8,nombre:'FAUSTO PEREZ',rnc:'',dir:'LA ZURZA',ciudad:'SANTIAGO',tel1:'8093605084',tel2:''}],empleados:[{id:1,nombre:'JUAN CARLOS MOREL',cargo:'PINTOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:2,nombre:'PEDRO MARTINEZ',cargo:'DESABOLLADOR',tipo:'AJUSTE',tarifa:0,tel:'',fecha:'2022-01-01',estado:'ACTIVO'},{id:3,nombre:'CARLOS REYES',cargo:'PREPARADOR',tipo:'FIJO',tarifa:15000,tel:'',fecha:'2022-06-01',estado:'ACTIVO'}],suplidores:[{id:1,nombre:'FATI AUTO PINTURA',ncf:'131941915',dir:'CALLE COLON, 77',ciudad:'MOCA',tel1:'829-599-5020',tel2:''},{id:2,nombre:'REPUESTO LA PRESA',ncf:'',dir:'',ciudad:'',tel1:'',tel2:''}],vehiculos:[{id:1,chasis:'113155',vehiculo:'TOYOTA RAV4 NEGRO 14',clienteId:1,color:'NEGRO',fecha:'2024-01-15',monto:38000,montoPag:38000,estatus:'PENDIENTE',obs:'',piezas:{paint:['BONETE','CAPOTA'],dent:[],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Pintura completa vehículo',monto:8000,pagado:false}]},{id:2,chasis:'501889',vehiculo:'SUBARU FORESTER NEGRO 18',clienteId:4,color:'NEGRO PERLA',fecha:'2024-02-20',monto:17500,montoPag:17500,estatus:'EN PROCESO',obs:'',piezas:{paint:['BONETE','BUMPER TRAS.'],dent:['GUARDA LODO DEL. L'],prep:[],brill:[]},ajustes:[{empId:1,tipoTrabajo:'Pintura',desc:'Bonete y bumper trasero',monto:5000,pagado:false},{empId:2,tipoTrabajo:'Desabolladura',desc:'Guarda lodo delantero L',monto:1800,pagado:true}]},{id:3,chasis:'7644724',vehiculo:'KIA SPORTAGE 19 BLANCO',clienteId:3,color:'BLANCO',fecha:'2024-04-18',monto:13000,montoPag:13000,estatus:'PARA ENTREGA',obs:'',piezas:{paint:[],dent:[],prep:[],brill:[]},ajustes:[]}],facturas:[{id:1,fecha:'2024-04-13',clienteId:8,vehiculo:'TOYOTA COROLLA AZUL 03',chasis:'30351',color:'',tipoVeh:'CARRO',items:[{desc:'PINTURA COMPLETA',ud:1,precio:50000},{desc:'RETROVISORES',ud:1,precio:12300}],subtotal:62300,itbis:0,aplicaItbis:false,dcto:0,total:62300,estatus:'PAGADO',obs:''},{id:2,fecha:'2024-04-20',clienteId:7,vehiculo:'SUBARU FORESTER NEGRO 18',chasis:'501889',color:'NEGRO PERLA',tipoVeh:'JEEP/SUV',items:[{desc:'BONETE',ud:1,precio:3500},{desc:'BUMPER TRASERO',ud:1,precio:3500},{desc:'RETROVISORES',ud:1,precio:3500}],subtotal:10500,itbis:1890,aplicaItbis:true,dcto:0,total:12390,estatus:'PENDIENTE',obs:'BASE ESPEJO BMW'}],caja:[{id:1,fecha:'2024-03-10',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'ABONO FACTURAS FATI',factura:'3236',mover:'SALIDA',moneda:'PESOS',monto:50000,estatus:'PAGADO',persona:'FATI AUTO PINTURA'},{id:2,fecha:'2024-04-23',tipo:'TRANSFERENCIA',cuenta:'CORRIENTE BANRESERVAS',desc:'MATERIALES PINTURA',factura:'41479',mover:'ENTRADA',moneda:'PESOS',monto:16965,estatus:'POR PAGAR',persona:'FATI AUTO PINTURA'},{id:3,fecha:'2024-04-24',tipo:'EFECTIVO',cuenta:'CAJA FUERTE EN PESOS',desc:'COBRO CLIENTE FAUSTO',factura:'0001',mover:'ENTRADA',moneda:'PESOS',monto:62300,estatus:'COBRADO',persona:'FAUSTO PEREZ'}],nxt:{v:4,f:3,c:9,e:4,s:3,cj:4,u:3,banco:3,mat:1,rp:1,cxp:1},
 materiales:[
   {id:1,nombre:'PINTURA BASE',categoria:'Pintura',costo:2500,stock:10,suplidor:'FATI AUTO PINTURA',fecha:'2024-01-15'},
@@ -1448,11 +1559,11 @@ function _doLoginOriginal(){
   document.getElementById('loginScreen').style.display='none';
   const wm=document.getElementById('welcomeModal');
   wm.style.display='flex';
-  document.getElementById('wName').textContent=found.nombre;
+  document.getElementById('wName').textContent=found2.nombre;
   const wRolLabels={admin:'👑 Administrador',dueno:'🏠 Dueño',secretaria:'💼 Secretaria',
   pintor:'🎨 Pintor',desabollador:'🔨 Desabollador',tecnico:'🔧 Técnico',
   recepcionista:'📋 Recepcionista',operador:'⚙️ Operador'};
-document.getElementById('wRole').textContent=wRolLabels[found.rol]||found.rol;
+document.getElementById('wRole').textContent=wRolLabels[found2.rol]||found2.rol;
   // Mostrar indicador Firebase en topbar
   const ind=document.getElementById('fbIndicator');
   if(ind){
@@ -1467,18 +1578,18 @@ document.getElementById('wRole').textContent=wRolLabels[found.rol]||found.rol;
   }
   // Iniciar listeners en tiempo real después del login
   if(window.FB_ONLINE && window.fbStartListeners) window.fbStartListeners();
+  closeWelcome();
 }
 function closeWelcome(){
   document.getElementById('welcomeModal').style.display='none';
   logBit('USUARIO','Inicio de sesión',`${CU.nombre} (${CU.rol})`);
 
   // ── Detectar si debe ir al portal técnico ───────────────────────
+  // Solo ir al portal técnico si el rol es explícitamente de técnico
   const ROLES_TECNICOS=['pintor','desabollador','tecnico','armador','brillador','preparador'];
   const isTechRole = ROLES_TECNICOS.includes((CU.rol||'').toLowerCase());
-  const isMobileDevice = window.innerWidth <= 768;
 
-  if(isTechRole || isMobileDevice && CU.rol !== 'admin' && CU.rol !== 'dueno'){
-    // Mostrar portal técnico móvil
+  if(isTechRole){
     document.getElementById('techPortal').style.display='block';
     document.getElementById('tpNombre').textContent=CU.nombre;
     document.getElementById('tpSubtitle').textContent=`${CU.cargo||CU.rol||'Técnico'} — Mis Trabajos`;
@@ -1589,8 +1700,181 @@ return`<tr><td>${v.id}</td><td class="fw-600">${v.chasis||'-'}</td><td><span cla
   style="background:rgba(37,99,235,.08);border-color:#93c5fd;position:relative;">
   📦${(v.materialesUsados||[]).length>0?`<span style="position:absolute;top:-4px;right:-4px;background:var(--info);color:#fff;border-radius:50%;width:15px;height:15px;font-size:.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;">${v.materialesUsados.length}</span>`:''}
 </button><button class="btn-icon" onclick="genFact(${v.id})">🧾</button>${v.estatus!=='ENTREGADO'?`<button class="btn-icon" onclick="cerrarOrden(${v.id})" title="Entregar al cliente" style="background:rgba(16,163,74,.1);border-color:#86efac;color:#15803d;">🚪</button>`:'<button class="btn-icon" style="opacity:.35;cursor:default;" disabled title="Ya entregado">✅</button>'}${canDelete()?`<button class="btn-icon del" onclick="delVeh(${v.id})">🗑️</button>`:''}</div></td></tr>`;}).join('')||'<tr><td colspan="10" class="text-center" style="padding:24px;color:var(--text2);">Sin registros</td></tr>';}
-function openVehModal(id=null){editId.v=id;selParts={paint:[],dent:[],prep:[],brill:[]};document.getElementById('vehModalTitle').textContent=id?'Editar Orden':'Nueva Orden de Trabajo';document.getElementById('vCliente').innerHTML=DB.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');document.getElementById('empAjusteBody').innerHTML='';if(id){const v=DB.vehiculos.find(x=>x.id===id);document.getElementById('vChasis').value=v.chasis;document.getElementById('vNombre').value=v.vehiculo;document.getElementById('vCliente').value=v.clienteId;document.getElementById('vColor').value=v.color;document.getElementById('vFecha').value=v.fecha;document.getElementById('vMonto').value=v.monto;document.getElementById('vMontoPag').value=v.montoPag||0;document.getElementById('vEstatus').value=v.estatus;document.getElementById('vObs').value=v.obs||'';selParts=JSON.parse(JSON.stringify(v.piezas||{paint:[],dent:[],prep:[],brill:[]}));(v.ajustes||[]).forEach(aj=>addEmpRow(aj));}else{['vChasis','vNombre','vColor','vObs'].forEach(i=>document.getElementById(i).value='');['vMonto','vMontoPag'].forEach(i=>document.getElementById(i).value='');document.getElementById('vEstatus').value='EN PROCESO';addEmpRow();}renderPartsGrid();openModal('vehModal');}
-function saveVeh(){const nom=document.getElementById('vNombre').value.trim();if(!nom){toast('Ingrese el nombre del vehículo','error');return;}const ajustes=[];document.querySelectorAll('#empAjusteBody tr').forEach(tr=>{const s=tr.querySelectorAll('select'),inp=tr.querySelectorAll('input');const eId=+s[0].value,tT=s[1].value,d=inp[0].value,m=+inp[1].value||0;if(eId&&m>0)ajustes.push({empId:eId,tipoTrabajo:tT,desc:d,monto:m,pagado:false});});const obj={chasis:document.getElementById('vChasis').value.trim(),vehiculo:nom.toUpperCase(),clienteId:+document.getElementById('vCliente').value,color:document.getElementById('vColor').value.trim().toUpperCase(),fecha:document.getElementById('vFecha').value,monto:+document.getElementById('vMonto').value||0,montoPag:+document.getElementById('vMontoPag').value||0,estatus:document.getElementById('vEstatus').value,obs:document.getElementById('vObs').value,piezas:JSON.parse(JSON.stringify(selParts)),ajustes};if(editId.v){obj.id=editId.v;DB.vehiculos[DB.vehiculos.findIndex(x=>x.id===editId.v)]=obj;toast('Orden actualizada ✓');logBit('ORDEN','Orden editada',`${obj.vehiculo} — Estatus: ${obj.estatus}`);}else{obj.id=DB.nxt.v++;DB.vehiculos.push(obj);toast('Orden creada ✓');logBit('ORDEN','Nueva orden',`${obj.vehiculo} — Cliente: ${DB.clientes.find(c=>c.id===obj.clienteId)?.nombre||'-'}`);}closeModal('vehModal');window.fbSaveDoc?.('vehiculos',obj);renderVeh();}
+// ── ESTADO MATRIZ ÓRDENES DE TRABAJO ──────────────────────────────
+let vMatriz = []; // [{tipo,pieza,techId,precioCliente,estado,pagado,pagoTech}]
+
+function vRenderMatriz(){
+  const tbody=document.getElementById('vMatrizTbl');
+  if(!tbody) return;
+  const empOpts='<option value="">— Sin asignar —</option>'+
+    DB.empleados.filter(e=>e.estado==='ACTIVO').map(e=>`<option value="${e.id}">${e.nombre} (${e.cargo})</option>`).join('');
+  if(!vMatriz.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text2);font-size:.82rem;">Haz clic en "+ Agregar Trabajo" para añadir trabajos a la orden</td></tr>';
+    return;
+  }
+  const tipos=['Desarmar','Desabollar','Preparar','Pintar','Brillar','Armar','Brillar','Otro...'];
+  const tiposSel=i=>tipos.map(t=>`<option value="${t}"${vMatriz[i].tipo===t?' selected':''}>${t}</option>`).join('');
+  tbody.innerHTML=vMatriz.map((row,i)=>`
+    <tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:6px 6px;min-width:150px;">
+        <select class="form-control" style="font-size:.8rem;padding:5px 6px;" onchange="vTipoChange(${i},this.value)">
+          <option value="">— Seleccionar —</option>
+          ${tiposSel(i)}
+        </select>
+        <input id="vTipoCustom_${i}" class="form-control" style="font-size:.8rem;padding:5px 8px;margin-top:4px;display:${(!row.tipo||tipos.slice(0,-1).includes(row.tipo))?'none':'block'};"
+          value="${(!row.tipo||tipos.slice(0,-1).includes(row.tipo))?'':row.tipo||''}"
+          oninput="vMatriz[${i}].tipo=this.value;vCalcTotal()" placeholder="Escribe el tipo...">
+      </td>
+      <td style="padding:6px 6px;min-width:150px;">
+        <input class="form-control" style="font-size:.8rem;padding:5px 8px;" value="${row.pieza||''}"
+          oninput="vMatriz[${i}].pieza=this.value" placeholder="Pieza o descripción">
+      </td>
+      <td style="padding:6px 6px;">
+        <select class="form-control" style="font-size:.78rem;padding:5px 6px;" onchange="vMatriz[${i}].techId=this.value">
+          ${empOpts.replace(`value="${row.techId||''}"`,`value="${row.techId||''}" selected`)}
+        </select>
+      </td>
+      <td style="padding:6px 6px;">
+        <input type="number" class="form-control" style="font-size:.8rem;padding:5px 8px;width:110px;" placeholder="0"
+          value="${row.precioCliente||''}" oninput="vMatriz[${i}].precioCliente=+this.value;vCalcTotal()">
+      </td>
+      <td style="padding:6px 4px;text-align:center;">
+        <button class="btn-icon del" onclick="vMatriz.splice(${i},1);vRenderMatriz();vCalcTotal()">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
+function vTipoChange(i, val){
+  const customInput = document.getElementById('vTipoCustom_'+i);
+  if(val==='Otro...'){
+    vMatriz[i].tipo='';
+    if(customInput){ customInput.style.display='block'; customInput.focus(); }
+  } else {
+    vMatriz[i].tipo=val;
+    if(customInput) customInput.style.display='none';
+  }
+  vCalcTotal();
+}
+
+
+function vAddFila(){
+  vMatriz.push({tipo:'',pieza:'',techId:'',precioCliente:0,estado:'PENDIENTE'});
+  vRenderMatriz();
+  vCalcTotal();
+  const tbody=document.getElementById('vMatrizTbl');
+  if(tbody) tbody.lastElementChild?.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function vCalcTotal(){
+  const subtotal=(vMatriz||[]).reduce((a,r)=>a+(+r.precioCliente||0),0);
+  const dc=+(document.getElementById('vDcto')?.value)||0;
+  const itbisOn=document.getElementById('vItbisToggle')?.checked;
+  const itbis=itbisOn?Math.round(subtotal*0.18):0;
+  const total=subtotal+itbis-dc;
+  if(document.getElementById('vMonto')) document.getElementById('vMonto').value=subtotal||'';
+  if(document.getElementById('vTMo')) document.getElementById('vTMo').textContent=`RD$ ${subtotal.toLocaleString('es-DO')}`;
+  if(document.getElementById('vTItbis')) document.getElementById('vTItbis').textContent=itbisOn?`RD$ ${itbis.toLocaleString('es-DO')}`:'No aplica';
+  if(document.getElementById('vItbisRow')) document.getElementById('vItbisRow').style.opacity=itbisOn?'1':'0.4';
+  if(document.getElementById('vTDcto')) document.getElementById('vTDcto').textContent=`RD$ ${dc.toLocaleString('es-DO')}`;
+  if(document.getElementById('vTotal')) document.getElementById('vTotal').textContent=`RD$ ${total.toLocaleString('es-DO')}`;
+}
+
+function vTogglePago(){
+  const v=document.querySelector('input[name="vPagoTipo"]:checked')?.value;
+  const pf=document.getElementById('vPagoFields');
+  if(pf) pf.style.display=(v==='parcial'||v==='total')?'block':'none';
+}
+
+function openVehModal(id=null){
+  editId.v=id;
+  vMatriz=[];
+  document.getElementById('vehModalTitle').textContent=id?'Editar Orden de Trabajo':'Nueva Orden de Trabajo';
+  document.getElementById('vCliente').innerHTML=DB.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  ['vNombre','vChasis','vColor','vObs'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  document.getElementById('vFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('vEstatus').value='EN PROCESO';
+  if(document.getElementById('vDcto')) document.getElementById('vDcto').value='';
+  if(id){
+    const v=DB.vehiculos.find(x=>x.id===id);
+    if(v){
+      document.getElementById('vNombre').value=v.vehiculo||'';
+      document.getElementById('vChasis').value=v.chasis||'';
+      document.getElementById('vCliente').value=v.clienteId||'';
+      document.getElementById('vColor').value=v.color||'';
+      document.getElementById('vFecha').value=v.fecha||'';
+      document.getElementById('vEstatus').value=v.estatus||'EN PROCESO';
+      document.getElementById('vObs').value=v.obs||'';
+      if(document.getElementById('vTipoVeh')) document.getElementById('vTipoVeh').value=v.tipoVeh||'carro';
+      if(document.getElementById('vTiempo')) document.getElementById('vTiempo').value=v.tiempo||'1-2 días';
+      if(document.getElementById('vFechaEntrega')) document.getElementById('vFechaEntrega').value=v.fechaEntrega||'';
+      if(document.getElementById('vDcto')) document.getElementById('vDcto').value=v.dcto||'';
+      // Cargar matriz
+      if(Array.isArray(v.matriz) && v.matriz.length){
+        vMatriz=JSON.parse(JSON.stringify(v.matriz));
+      } else {
+        // Migrar desde formato antiguo
+        vMatriz=[];
+        (v.ajustes||[]).forEach(aj=>{
+          vMatriz.push({tipo:aj.tipoTrabajo||'',pieza:aj.desc||'',techId:aj.empId||'',precioCliente:aj.monto||0,estado:'PENDIENTE'});
+        });
+      }
+    }
+  }
+  vRenderMatriz();
+  vCalcTotal();
+  openModal('vehModal');
+}
+function saveVeh(){
+  const nom=document.getElementById('vNombre').value.trim();
+  if(!nom){toast('Ingrese el nombre del vehículo','error');return;}
+  const dc=+document.getElementById('vDcto')?.value||0;
+  const subtotal=vMatriz.reduce((a,r)=>a+(+r.precioCliente||0),0);
+  const itbisOn=document.getElementById('vItbisToggle')?.checked;
+  const itbis=itbisOn?Math.round(subtotal*0.18):0;
+  const totalEst=subtotal+itbis-dc;
+  // Build ajustes for backward compat (used by pagoEmp modal)
+  const ajustes=vMatriz.filter(r=>r.techId).map(r=>({
+    empId:+r.techId, tipoTrabajo:r.tipo, desc:r.pieza,
+    monto:r.pagoTech||0, pagado:r.pagado||false
+  }));
+  const obj={
+    chasis:document.getElementById('vChasis').value.trim(),
+    vehiculo:nom.toUpperCase(),
+    clienteId:+document.getElementById('vCliente').value,
+    color:document.getElementById('vColor').value.trim().toUpperCase(),
+    fecha:document.getElementById('vFecha').value,
+    tipoVeh:document.getElementById('vTipoVeh')?.value||'carro',
+    tiempo:document.getElementById('vTiempo')?.value||'A convenir',
+    fechaEntrega:document.getElementById('vFechaEntrega')?.value||null,
+    monto:subtotal,
+    montoPag:0,
+    dcto:dc,
+    aplicaItbis:itbisOn,
+    itbis:itbis,
+    totalEst:totalEst,
+    estatus:document.getElementById('vEstatus').value,
+    obs:document.getElementById('vObs').value,
+    matriz:JSON.parse(JSON.stringify(vMatriz)),
+    piezas:{paint:[],dent:[],prep:[],brill:[]},
+    ajustes:ajustes
+  };
+  if(editId.v){
+    obj.id=editId.v;
+    DB.vehiculos[DB.vehiculos.findIndex(x=>x.id===editId.v)]=obj;
+    toast('Orden actualizada ✓');
+    logBit('ORDEN','Orden editada',`${obj.vehiculo} — Estatus: ${obj.estatus}`);
+  } else {
+    const maxId=DB.vehiculos.length?Math.max(...DB.vehiculos.map(v=>v.id||0)):0;
+    obj.id=Math.max(DB.nxt.v||1, maxId+1);
+    DB.nxt.v=obj.id+1;
+    DB.vehiculos.push(obj);
+    toast('Orden creada ✓');
+    logBit('ORDEN','Nueva orden',`${obj.vehiculo} — Cliente: ${DB.clientes.find(c=>c.id===obj.clienteId)?.nombre||'-'}`);
+  }
+  closeModal('vehModal');
+  window.fbSaveDoc?.('vehiculos',obj);
+  renderVeh();
+}
 
 function cerrarOrden(vId){
   const v=DB.vehiculos.find(x=>x.id===vId);
@@ -1732,7 +2016,7 @@ function renderVehRecepciones(){
   const sM={RECIBIDO:'warning','EN PROCESO':'info',ENTREGADO:'success'};
   tbody.innerHTML=recs.length?recs.map(r=>{
     const cl=DB.clientes.find(c=>c.id===r.clienteId);
-    const servs=[...Object.keys(r.piezas||{}),...Object.keys(r.specials||{})].length;
+    const servs=Array.isArray(r.matriz)&&r.matriz.length ? r.matriz.length : [...Object.keys(r.piezas||{}),...Object.keys(r.specials||{})].length;
     return`<tr>
       <td class="fw-600">#${String(r.id).padStart(4,'0')}</td>
       <td>${fmtD(r.fecha)}</td>
@@ -1970,7 +2254,10 @@ function printReciboTecnico(empId){
     <div class="firma"><div class="firma-line">RECIBIDO POR / ${emp.nombre}</div></div>
   </div>
   <div style="text-align:center;margin-top:16px;"><button onclick="window.print()" style="background:#1a3a5c;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:.85rem;cursor:pointer;">🖨️ IMPRIMIR</button></div>
-  </body></html>`);
+  
+
+
+</body></html>`);
   win.document.close();
 }
 
@@ -2120,7 +2407,10 @@ function printReciboEmpDirect(empId){
     <div style="text-align:center;margin-top:10px;font-size:.68rem;color:#bbb;letter-spacing:2px;">${esEmp?'📋 COPIA EMPLEADO':'📋 COPIA ADMINISTRADOR'}</div>
   </div>`;
   const win=window.open('','_blank','width=760,height:650');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo — ${e.nombre}</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;background:#f0f0f0;padding:14px;}.pg-break{border:none;border-top:2px dashed #ccc;margin:18px auto;max-width:680px;position:relative;}.pg-break::after{content:'✂ Cortar';position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#f0f0f0;padding:0 8px;font-size:.7rem;color:#aaa;}@media print{body{background:#fff;padding:0;}.pg-break{page-break-after:always;border:none;}.pg-break::after{display:none;}}</style></head><body>${bloqueHTML('COMPROBANTE DE PAGO',false)}<hr class="pg-break">${bloqueHTML('RECIBO DE PAGO',true)}<div style="text-align:center;margin-top:14px;"><button onclick="window.print()" style="background:#c8102e;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer;">🖨️ IMPRIMIR</button></div></body></html>`);
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Recibo — ${e.nombre}</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;background:#f0f0f0;padding:14px;}.pg-break{border:none;border-top:2px dashed #ccc;margin:18px auto;max-width:680px;position:relative;}.pg-break::after{content:'✂ Cortar';position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#f0f0f0;padding:0 8px;font-size:.7rem;color:#aaa;}@media print{body{background:#fff;padding:0;}.pg-break{page-break-after:always;border:none;}.pg-break::after{display:none;}}</style></head><body>${bloqueHTML('COMPROBANTE DE PAGO',false)}<hr class="pg-break">${bloqueHTML('RECIBO DE PAGO',true)}<div style="text-align:center;margin-top:14px;"><button onclick="window.print()" style="background:#c8102e;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer;">🖨️ IMPRIMIR</button></div>
+
+
+</body></html>`);
   win.document.close();
 }
 function renderSup(s=''){let d=DB.suplidores;if(s)d=d.filter(x=>(x.nombre+(x.ncf||'')).toLowerCase().includes(s.toLowerCase()));document.getElementById('supTable').innerHTML=d.map(x=>{return`<tr><td>${x.id}</td><td class="fw-600">${x.nombre}</td><td><span class="badge badge-info" style="font-size:.7rem;">${x.tipoDoc||'RNC'}</span></td><td>${x.ncf||'-'}</td><td>${x.ciudad||'-'}</td><td>${x.tel1||'-'}</td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openSupModal(${x.id})">✏️</button><button class="btn-icon del" onclick="delSup(${x.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin suplidores</td></tr>';}
@@ -3383,7 +3673,10 @@ function printReciboEmp(vId){
     <hr class="page-break">
     ${reciboBlock('RECIBO DE PAGO',true)}
     <div style="text-align:center;margin-top:16px;"><button onclick="window.print()" style="background:#c8102e;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer;letter-spacing:1px;">🖨️ IMPRIMIR</button></div>
-  </body></html>`);
+  
+
+
+</body></html>`);
   win.document.close();
 }
 
@@ -3762,26 +4055,26 @@ function rpRenderMatriz(){
   if(!tbody) return;
   const empOpts = '<option value="">— Sin asignar —</option>' +
     DB.empleados.filter(e=>e.estado==='ACTIVO').map(e=>`<option value="${e.id}">${e.nombre} (${e.cargo})</option>`).join('');
-  const tiposOpts = (customTipos) => {
-    const all = [...new Set([...RP_TIPOS_DEFAULT, ...customTipos])];
-    return all.map(t=>`<option value="${t}">${t}</option>`).join('');
-  };
   if(!rpMatriz.length){
     tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text2);font-size:.82rem;">Haz clic en "+ Agregar Trabajo" para añadir trabajos a la orden</td></tr>';
     return;
   }
-  const usedTipos = rpMatriz.map(r=>r.tipo).filter(Boolean);
+  const tipos=['Desarmar','Desabollar','Preparar','Pintar','Brillar','Armar','Otro...'];
+  const tiposSel=i=>tipos.map(t=>`<option value="${t}"${rpMatriz[i].tipo===t?' selected':''}>${t}</option>`).join('');
   tbody.innerHTML = rpMatriz.map((row,i)=>`
     <tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:6px 6px;">
-        <input list="dpTipos_${i}" class="form-control" style="font-size:.8rem;padding:5px 8px;" value="${row.tipo||''}"
-          oninput="rpMatriz[${i}].tipo=this.value;rpCalcTotal()" placeholder="Tipo de trabajo">
-        <datalist id="dpTipos_${i}">${RP_TIPOS_DEFAULT.map(t=>`<option value="${t}">`).join('')}</datalist>
+      <td style="padding:6px 6px;min-width:150px;">
+        <select class="form-control" style="font-size:.8rem;padding:5px 6px;" onchange="rpTipoChange(${i},this.value)">
+          <option value="">— Seleccionar —</option>
+          ${tiposSel(i)}
+        </select>
+        <input id="rpTipoCustom_${i}" class="form-control" style="font-size:.8rem;padding:5px 8px;margin-top:4px;display:${(!row.tipo||tipos.slice(0,-1).includes(row.tipo))?'none':'block'};"
+          value="${(!row.tipo||tipos.slice(0,-1).includes(row.tipo))?'':row.tipo||''}"
+          oninput="rpMatriz[${i}].tipo=this.value;rpCalcTotal()" placeholder="Escribe el tipo...">
       </td>
-      <td style="padding:6px 6px;">
-        <input list="dpPiezas_${i}" class="form-control" style="font-size:.8rem;padding:5px 8px;" value="${row.pieza||''}"
+      <td style="padding:6px 6px;min-width:150px;">
+        <input class="form-control" style="font-size:.8rem;padding:5px 8px;" value="${row.pieza||''}"
           oninput="rpMatriz[${i}].pieza=this.value" placeholder="Pieza o descripción">
-        <datalist id="dpPiezas_${i}">${RP_PIEZAS_DEFAULT.map(p=>`<option value="${p}">`).join('')}</datalist>
       </td>
       <td style="padding:6px 6px;">
         <select class="form-control" style="font-size:.78rem;padding:5px 6px;" onchange="rpMatriz[${i}].techId=this.value">
@@ -3793,10 +4086,23 @@ function rpRenderMatriz(){
           value="${row.precioCliente||''}" oninput="rpMatriz[${i}].precioCliente=+this.value;rpCalcTotal()">
       </td>
       <td style="padding:6px 4px;text-align:center;">
-        <button class="btn-icon del" onclick="rpMatriz.splice(${i},1);rpRenderMatriz();rpCalcTotal()">✕</button>
+        <button class="btn-icon del" onclick="delete rpMatriz[${i}];rpMatriz=rpMatriz.filter((_,j)=>j!==${i});rpRenderMatriz();rpCalcTotal()">✕</button>
       </td>
     </tr>`).join('');
 }
+
+function rpTipoChange(i, val){
+  const customInput = document.getElementById('rpTipoCustom_'+i);
+  if(val==='Otro...'){
+    rpMatriz[i].tipo='';
+    if(customInput){ customInput.style.display='block'; customInput.focus(); }
+  } else {
+    rpMatriz[i].tipo=val;
+    if(customInput) customInput.style.display='none';
+  }
+  rpCalcTotal();
+}
+
 
 function rpAddFila(){
   rpMatriz.push({tipo:'',pieza:'',techId:'',precioCliente:0,estado:'PENDIENTE'});
@@ -3926,8 +4232,8 @@ function renderRecepcion(s=''){
   const hoyD=new Date(); hoyD.setHours(0,0,0,0);
   document.getElementById('recepTable').innerHTML=d.length?d.map(r=>{
     const cl=DB.clientes.find(c=>c.id===r.clienteId);
-    const nPiezas=Object.keys(r.piezas||{}).length;
-    const servs=Object.keys(r.specials||{}).length;
+    const nPiezas=Array.isArray(r.matriz)&&r.matriz.length ? r.matriz.length : Object.keys(r.piezas||{}).length;
+    const servs=0;
     // Alerta fecha entrega
     let alertaHtml='';
     if(r.fechaEntrega&&r.estado!=='ENTREGADO'){
@@ -3943,7 +4249,7 @@ function renderRecepcion(s=''){
       <td class="fw-600">${r.nombre}<br><small style="color:var(--text2);">${r.color||''}</small></td>
       <td style="font-size:.82rem;">${cl?.nombre||'-'}</td>
       <td>${tipoLabel[r.tipo]||r.tipo}${alertaHtml}</td>
-      <td style="font-size:.79rem;">${nPiezas} pieza${nPiezas!==1?'s':''} · ${servs} serv.</td>
+      <td style="font-size:.79rem;">${nPiezas} trabajo${nPiezas!==1?'s':''}</td>
       <td class="fw-600">${fmt(r.totalEst||0)}</td>
       <td><span class="badge badge-${sM[r.estado]||'info'}">${r.estado}</span></td>
       <td><div class="flex gap-2">
@@ -4095,7 +4401,10 @@ function printPrefactura(id){
     <div class="no-print" style="text-align:center;margin-top:16px;">
       <button onclick="window.print()" style="background:#1a3a5c;color:#fff;border:none;padding:10px 28px;border-radius:6px;font-size:.9rem;font-weight:700;cursor:pointer;">🖨️ IMPRIMIR</button>
     </div>
-  </body></html>`);
+  
+
+
+</body></html>`);
   win.document.close();
 }
 
@@ -5195,5 +5504,43 @@ closeWelcome=function(){
 
 
 
+</script>
+
+
+
+
+
+
+<script>
+// ── AUTO-LOGOUT POR INACTIVIDAD (30 minutos) ─────────────────────
+(function(){
+  var TIMEOUT_MS = 30 * 60 * 1000;
+  var _timer = null;
+  function resetTimer(){
+    clearTimeout(_timer);
+    var login = document.getElementById('loginScreen');
+    if(!login || login.style.display !== 'none') return;
+    _timer = setTimeout(function(){
+      var login2 = document.getElementById('loginScreen');
+      if(login2 && login2.style.display === 'none'){
+        if(typeof doLogout === 'function') doLogout();
+        var msg = document.createElement('div');
+        msg.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:#1a3a5c;color:#fff;padding:14px 28px;border-radius:10px;font-size:.95rem;font-family:sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.3);';
+        msg.textContent = '⏰ Sesión cerrada por inactividad (30 min)';
+        document.body.appendChild(msg);
+        setTimeout(function(){ if(msg.parentNode) msg.parentNode.removeChild(msg); }, 4000);
+      }
+    }, TIMEOUT_MS);
+  }
+  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function(evt){
+    document.addEventListener(evt, resetTimer, { passive: true });
+  });
+  var loginObs = new MutationObserver(function(){ resetTimer(); });
+  document.addEventListener('DOMContentLoaded', function(){
+    var login = document.getElementById('loginScreen');
+    if(login) loginObs.observe(login, { attributes: true, attributeFilter: ['style'] });
+    resetTimer();
+  });
+})();
 </script>
 </body></html>
