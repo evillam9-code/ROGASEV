@@ -1358,7 +1358,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="form-row"><label class="form-label">Usuario (login)</label><input class="form-control" id="uUser"></div>
       <div class="form-row"><label class="form-label">Nombre Completo</label><input class="form-control" id="uNombre"></div>
       <div class="form-row"><label class="form-label">Contraseña</label><input type="password" class="form-control" id="uPass"></div>
-      <div class="form-row"><label class="form-label">Rol</label><select class="form-control" id="uRol" onchange="uApplyPreset(this.value)">
+
   <optgroup label="── Acceso Total ──">
     <option value="admin">👑 Administrador</option>
   </optgroup>
@@ -1406,6 +1406,12 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <span>Solo el <strong>Administrador</strong> tiene acceso total automático a todo el sistema. Para todos los demás roles — incluyendo Dueño — el administrador asigna exactamente qué pueden <strong>ver, crear, editar o borrar</strong>. Los permisos sugeridos se cargan al seleccionar el rol y pueden ajustarse.</span>
     </div>
     <div class="form-row mt-3"><label class="form-label">Estado</label><select class="form-control" id="uEstado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
+    <div class="form-row mt-3" id="uEmpRow" style="display:none;">
+      <label class="form-label">👷 Vincular a Empleado del Taller <span style="color:var(--text2);font-size:.75rem;font-weight:400;">(Para que vea sus trabajos asignados)</span></label>
+      <select class="form-control" id="uEmpId">
+        <option value="">— Sin vincular —</option>
+      </select>
+    </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('userModal')">Cancelar</button><button class="btn btn-primary" onclick="saveUser()">💾 Guardar</button></div>
   </div>
@@ -2138,7 +2144,7 @@ function renderEmpTrabajos(){
       if(!emp) return;
       if(filtroId && emp.id!==filtroId) return;
       if(fila.pagado) return; // ya pagado, no mostrar
-      rows.push({recepId:r.id,filaIdx:idx,empId:emp.id,empNombre:emp.nombre,vehiculo:r.nombre,tipo:fila.tipo,pieza:fila.pieza,precioCliente:fila.precioCliente||0,estado:fila.estado||'PENDIENTE',pagoTech:fila.pagoTech||0});
+      rows.push({recepId:r.id,filaIdx:idx,empId:emp.id,empNombre:emp.nombre,vehiculo:r.nombre,tipo:fila.tipo,pieza:fila.pieza,precioCliente:fila.precioCliente||0,estado:fila.estado||'PENDIENTE',pagoTech:fila.pagoTech||0,fechaTerminado:fila.fechaTerminado||'',horaTerminado:fila.horaTerminado||''});
     });
   });
   const estBadge={PENDIENTE:'badge-warning',EN_PROCESO:'badge-info','EN PROCESO':'badge-info',COMPLETADO:'badge-success',TERMINADO:'badge-success'};
@@ -2149,10 +2155,19 @@ function renderEmpTrabajos(){
     <td>${row.tipo||'—'}</td>
     <td style="font-size:.82rem;">${row.pieza||'—'}</td>
     <td class="fw-600">${fmt(row.precioCliente)}</td>
-    <td><span class="badge ${estBadge[row.estado]||'badge-warning'}">${row.estado||'PENDIENTE'}</span></td>
-    <td><input type="number" class="form-control" style="width:110px;font-size:.8rem;padding:4px 6px;" placeholder="0" value="${row.pagoTech||''}"
-      onchange="actualizarPagoTech(${row.recepId},${row.filaIdx},+this.value)"></td>
-    <td><button class="btn btn-sm btn-success" onclick="registrarPagoTech(${row.recepId},${row.filaIdx},${row.empId})">✅ Pagar</button></td>
+    <td>
+      <span class="badge ${estBadge[row.estado]||'badge-warning'}">${row.estado||'PENDIENTE'}</span>
+      ${row.fechaTerminado?`<br><small style="color:var(--success);font-size:.7rem;">🕐 ${row.fechaTerminado} ${row.horaTerminado||''}</small>`:''}
+    </td>
+    <td>${(row.estado==='COMPLETADO'||row.estado==='TERMINADO')?
+      `<input type="number" class="form-control" style="width:110px;font-size:.8rem;padding:4px 6px;" placeholder="0" value="${row.pagoTech||''}"
+        onchange="actualizarPagoTech(${row.recepId},${row.filaIdx},+this.value)">`:
+      `<span style="font-size:.75rem;color:var(--text2);">Esperar conclusión</span>`
+    }</td>
+    <td>${(row.estado==='COMPLETADO'||row.estado==='TERMINADO')?
+      `<button class="btn btn-sm btn-success" onclick="registrarPagoTech(${row.recepId},${row.filaIdx},${row.empId})">✅ Pagar</button>`:
+      '<span style="font-size:.75rem;color:var(--text2);">—</span>'
+    }</td>
   </tr>`).join(''):'<tr><td colspan="9" class="text-center" style="padding:24px;color:var(--text2);">No hay trabajos asignados pendientes de pago</td></tr>';
 }
 
@@ -2478,18 +2493,26 @@ function openUserModal(id=null){
   editId.u=id;
   document.getElementById('userModalTitle').textContent=id?'Editar Usuario':'Nuevo Usuario';
   const u=id?DB.users.find(x=>x.id===id):null;
+  // Populate empId select
+  const empSel=document.getElementById('uEmpId');
+  if(empSel){
+    empSel.innerHTML='<option value="">— Sin vincular —</option>'+
+      DB.empleados.filter(e=>e.estado==='ACTIVO').map(e=>`<option value="${e.id}">${e.nombre} (${e.cargo})</option>`).join('');
+  }
   if(u){
     document.getElementById('uUser').value=u.user;
     document.getElementById('uNombre').value=u.nombre;
     document.getElementById('uPass').value=u.pass;
     document.getElementById('uRol').value=u.rol;
     document.getElementById('uEstado').value=u.estado;
+    if(empSel) empSel.value=u.empId||'';
     document.querySelectorAll('#modulesCheck input').forEach(cb=>cb.checked=u.modulos?.includes(cb.value));
     document.querySelectorAll('#permisosCheck input').forEach(cb=>cb.checked=(u.permisos||[]).includes(cb.value));
   } else {
     ['uUser','uNombre','uPass'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('uRol').value='operador';
     document.getElementById('uEstado').value='activo';
+    if(empSel) empSel.value='';
     document.querySelectorAll('#modulesCheck input').forEach(cb=>cb.checked=false);
     document.querySelectorAll('#permisosCheck input').forEach(cb=>cb.checked=false);
   }
@@ -2503,6 +2526,10 @@ function openUserModal(id=null){
     if(permsDiv) permsDiv.style.opacity=isAdmin?'0.4':'1';
     const note=document.getElementById('adminNote');
     if(note) note.style.display=isAdmin?'flex':'none';
+    // Mostrar campo de vínculo a empleado para roles técnicos
+    const techRoles=['pintor','desabollador','tecnico','operador'];
+    const empRow=document.getElementById('uEmpRow');
+    if(empRow) empRow.style.display=techRoles.includes(rol.value)?'block':'none';
   }
   rol.onchange=togglePerms;
   togglePerms();
@@ -2520,8 +2547,12 @@ function saveUser(){
   const mods=isFullAccess?ALL_MODS:[...document.querySelectorAll('#modulesCheck input:checked')].map(cb=>cb.value);
 
   // ── Permisos simples (para canDo / canEdit / canDelete) ──────────
-  const permsSimple=isFullAccess?['perm_editar','perm_borrar','perm_cobrar','perm_pagar']:
+  const techRoles=['pintor','desabollador','tecnico'];
+  const isTechRole=techRoles.includes(rol);
+  let permsSimple=isFullAccess?['perm_editar','perm_borrar','perm_cobrar','perm_pagar']:
     [...document.querySelectorAll('#permisosCheck input:checked')].map(cb=>cb.value);
+  // Roles técnicos siempre tienen perm_editar (para marcar trabajos como terminados)
+  if(isTechRole && !permsSimple.includes('perm_editar')) permsSimple=['perm_editar',...permsSimple];
 
   // ── Permisos granulares (para uCanDo / uCanSee / navegación) ────
   const permsGranular=isFullAccess
@@ -2535,7 +2566,8 @@ function saveUser(){
     modulos:['dashboard',...mods.filter(m=>m!=='dashboard')],
     permisos:permsSimple,           // array simple: ['perm_editar',...]
     permisosGranulares:permsGranular, // objeto: {vehiculos:{ver,editar,...},...}
-    estado:document.getElementById('uEstado').value
+    estado:document.getElementById('uEstado').value,
+    empId: +document.getElementById('uEmpId')?.value||null
   };
 
   if(editId.u){
@@ -4059,18 +4091,11 @@ function rpRenderMatriz(){
     tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text2);font-size:.82rem;">Haz clic en "+ Agregar Trabajo" para añadir trabajos a la orden</td></tr>';
     return;
   }
-  const tipos=['Desarmar','Desabollar','Preparar','Pintar','Brillar','Armar','Otro...'];
-  const tiposSel=i=>tipos.map(t=>`<option value="${t}"${rpMatriz[i].tipo===t?' selected':''}>${t}</option>`).join('');
   tbody.innerHTML = rpMatriz.map((row,i)=>`
     <tr style="border-bottom:1px solid var(--border);">
       <td style="padding:6px 6px;min-width:150px;">
-        <select class="form-control" style="font-size:.8rem;padding:5px 6px;" onchange="rpTipoChange(${i},this.value)">
-          <option value="">— Seleccionar —</option>
-          ${tiposSel(i)}
-        </select>
-        <input id="rpTipoCustom_${i}" class="form-control" style="font-size:.8rem;padding:5px 8px;margin-top:4px;display:${(!row.tipo||tipos.slice(0,-1).includes(row.tipo))?'none':'block'};"
-          value="${(!row.tipo||tipos.slice(0,-1).includes(row.tipo))?'':row.tipo||''}"
-          oninput="rpMatriz[${i}].tipo=this.value;rpCalcTotal()" placeholder="Escribe el tipo...">
+        <input class="form-control" style="font-size:.8rem;padding:5px 8px;" value="${row.tipo||''}"
+          oninput="rpMatriz[${i}].tipo=this.value" placeholder="Ej: Pintar, Desabollar...">
       </td>
       <td style="padding:6px 6px;min-width:150px;">
         <input class="form-control" style="font-size:.8rem;padding:5px 8px;" value="${row.pieza||''}"
@@ -4656,7 +4681,7 @@ function renderTechPortal(){
         : (techEmp&&techEmp.nombre.toLowerCase()===CU.nombre.toLowerCase());
       if(!isMyWork) return;
       if(fila.pagado) return; // ya pagado, desaparece
-      trabajos.push({recepId:r.id,filaIdx:idx,vehiculo:r.nombre,cliente:cl?.nombre||'—',color:r.color||'',tipo:fila.tipo||'—',pieza:fila.pieza||'—',estado:fila.estado||'PENDIENTE'});
+      trabajos.push({recepId:r.id,filaIdx:idx,vehiculo:r.nombre,cliente:cl?.nombre||'—',color:r.color||'',tipo:fila.tipo||'—',pieza:fila.pieza||'—',estado:fila.estado||'PENDIENTE',fechaTerminado:fila.fechaTerminado||'',horaTerminado:fila.horaTerminado||''});
     });
   });
 
@@ -4680,8 +4705,9 @@ function renderTechPortal(){
                 isProc?`<span class="tp-badge tp-badge-progress">🔄 En Proceso</span>`:
                        `<span class="tp-badge tp-badge-done">✅ Completado</span>`;
     const btnStart=isPend?`<button class="tp-btn tp-btn-start" onclick="techUpdateEstado(${t.recepId},${t.filaIdx},'EN PROCESO')">▶ Iniciar</button>`:'';
-    const btnDone=isProc?`<button class="tp-btn tp-btn-done" onclick="techUpdateEstado(${t.recepId},${t.filaIdx},'COMPLETADO')">✅ Marcar Listo</button>`:'';
-    const btnComp=isDone?`<button class="tp-btn tp-btn-disabled" disabled>✅ Completado</button>`:'';
+    const btnDone=isProc?`<button class="tp-btn tp-btn-done" onclick="techUpdateEstado(${t.recepId},${t.filaIdx},'COMPLETADO')">✅ Marcar Terminado</button>`:'';
+    const btnComp=isDone?`<button class="tp-btn tp-btn-disabled" disabled>✅ Terminado</button>`:'';
+    const fechaInfo=isDone&&t.fechaTerminado?`<div class="tp-detail" style="font-size:.75rem;color:var(--success);">🕐 Terminado: ${t.fechaTerminado} ${t.horaTerminado||''}</div>`:'';
     return `<div class="tp-card">
       <div class="tp-card-header">
         <div>
@@ -4691,6 +4717,7 @@ function renderTechPortal(){
         ${badge}
       </div>
       <div class="tp-detail"><strong>${t.tipo}</strong> — ${t.pieza}</div>
+      ${fechaInfo}
       ${(btnStart||btnDone||btnComp)?`<div class="tp-actions">${btnStart}${btnDone}${btnComp}</div>`:''}
     </div>`;
   }
@@ -4710,8 +4737,15 @@ function techUpdateEstado(recepId, filaIdx, nuevoEstado){
   const r=DB.recepciones.find(x=>x.id===recepId);
   if(!r||!Array.isArray(r.matriz)||!r.matriz[filaIdx]) return;
   r.matriz[filaIdx].estado=nuevoEstado;
+  // Registrar fecha/hora automáticamente al completar
+  if(nuevoEstado==='COMPLETADO'||nuevoEstado==='TERMINADO'){
+    const ahora=new Date();
+    r.matriz[filaIdx].fechaTerminado=ahora.toISOString().split('T')[0];
+    r.matriz[filaIdx].horaTerminado=ahora.toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
+    r.matriz[filaIdx].terminadoPor=CU?.nombre||'Técnico';
+  }
   window.fbSaveDoc?.('recepciones',r);
-  toast(nuevoEstado==='EN PROCESO'?'▶ Trabajo iniciado':'✅ Trabajo marcado como listo');
+  toast(nuevoEstado==='EN PROCESO'?'▶ Trabajo iniciado':'✅ Trabajo marcado como terminado — '+new Date().toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}));
   setTimeout(renderTechPortal,400);
 }
 
@@ -5122,6 +5156,12 @@ function uApplyPreset(rol){
   const perms=preset();
   MODULOS_PERMS.forEach(m=>{['ver','crear','editar','borrar'].forEach(a=>{const el=document.getElementById(`perm_${m.key}_${a}`);if(el)el.checked=!!(perms[m.key]&&perms[m.key][a]);});});
   const rolSel=document.getElementById('uRol');if(rolSel&&PRESETS[rol])rolSel.value=rol;
+  // Roles técnicos: marcar perm_editar automáticamente
+  const techRoles=['pintor','desabollador','tecnico'];
+  if(techRoles.includes(rol)){
+    const editCb=document.querySelector('#permisosCheck input[value="perm_editar"]');
+    if(editCb) editCb.checked=true;
+  }
 }
 function uRenderPerms(userPerms={}){
   const tbody=document.getElementById('permsBody');if(!tbody)return;
