@@ -1183,7 +1183,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
         <div style="background:#f8fafc;border-radius:10px;padding:14px;">
           <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.9rem;margin-bottom:10px;color:var(--text);">💰 Presupuesto</div>
-          <div class="form-row"><label class="form-label">Descuento (RD$)</label><input type="number" class="form-control" id="vDcto" placeholder="0" oninput="vCalcTotal()"></div>
+          <div class="form-row"><label class="form-label">Descuento (RD$)</label><input type="text" inputmode="decimal" class="form-control" id="vDcto" placeholder="0" oninput="fmtPesosInput(this);vCalcTotal()"></div>
           <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;">
             <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
               <div><div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.85rem;color:#15803d;">ITBIS 18%</div><div style="font-size:.7rem;color:#16a34a;">Si el cliente requiere comprobante fiscal</div></div>
@@ -1247,7 +1247,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
         <div class="form-row"><label class="form-label">Teléfono</label><input class="form-control" id="fTel"></div>
         <div class="form-row"><label class="form-label">Fecha</label><input type="date" class="form-control" id="fFecha"></div>
         <div class="form-row"><label class="form-label">Tipo Vehículo</label><select class="form-control" id="fTipoVeh"><option>CARRO</option><option>JEEP/SUV</option><option>CAMIONETA</option></select></div>
-        <div class="form-row"><label class="form-label">Descuento (RD$)</label><input type="number" class="form-control" id="fDcto" value="0" oninput="calcTotals()"></div>
+        <div class="form-row"><label class="form-label">Descuento (RD$)</label><input type="text" inputmode="decimal" class="form-control" id="fDcto" value="0" oninput="fmtPesosInput(this);calcTotals()"></div>
         <div class="form-row"><label class="form-label">Estado Pago</label><select class="form-control" id="fEstatus"><option>PENDIENTE</option><option>ABONADO</option><option>PAGADO</option></select></div>
       </div>
       <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
@@ -1340,7 +1340,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <div class="form-row"><label class="form-label">Cuenta Bancaria *</label><select class="form-control" id="cajCuenta"></select></div>
       <div class="form-row"><label class="form-label">Movimiento</label><select class="form-control" id="cajMover"><option>ENTRADA</option><option>SALIDA</option></select></div>
       <div class="form-row"><label class="form-label">Moneda</label><select class="form-control" id="cajMoneda"><option>PESOS</option><option>DÓLARES</option><option>EUROS</option></select></div>
-      <div class="form-row"><label class="form-label">Monto</label><input type="number" class="form-control" id="cajMonto" placeholder="0.00"></div>
+      <div class="form-row"><label class="form-label">Monto</label><input type="text" inputmode="decimal" class="form-control" id="cajMonto" placeholder="0.00" oninput="fmtPesosInput(this)"></div>
       <div class="form-row"><label class="form-label">#Factura</label><input class="form-control" id="cajFact"></div>
       <div class="form-row"><label class="form-label">Estatus</label><select class="form-control" id="cajEst"><option>PAGADO</option><option>POR PAGAR</option><option>COBRADO</option><option>POR COBRAR</option><option>EN TRÁNSITO</option><option>ANULADO</option><option>DEPOSITADO</option></select></div>
     </div>
@@ -1411,6 +1411,10 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
       <select class="form-control" id="uEmpId">
         <option value="">— Sin vincular —</option>
       </select>
+    </div>
+    <div class="form-row mt-3">
+      <label class="form-label">📝 Observaciones <span style="color:var(--text2);font-size:.75rem;font-weight:400;">(Opcional)</span></label>
+      <textarea class="form-control" id="uObs" rows="2" placeholder="Ej: Trabaja solo los lunes, contactar al jefe antes..."></textarea>
     </div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('userModal')">Cancelar</button><button class="btn btn-primary" onclick="saveUser()">💾 Guardar</button></div>
@@ -1741,8 +1745,9 @@ function vRenderMatriz(){
         </select>
       </td>
       <td style="padding:6px 6px;">
-        <input type="number" class="form-control" style="font-size:.8rem;padding:5px 8px;width:110px;" placeholder="0"
-          value="${row.precioCliente||''}" oninput="vMatriz[${i}].precioCliente=+this.value;vCalcTotal()">
+        <input type="text" inputmode="decimal" class="form-control" style="font-size:.8rem;padding:5px 8px;width:110px;" placeholder="0"
+          value="${row.precioCliente?Number(row.precioCliente).toLocaleString('es-DO'):''}"
+          oninput="fmtPesosInput(this);vMatriz[${i}].precioCliente=parseFloat((this.dataset.rawVal||this.value).replace(/[^0-9.]/g,''))||0;vCalcTotal()">
       </td>
       <td style="padding:6px 4px;text-align:center;">
         <button class="btn-icon del" onclick="vMatriz.splice(${i},1);vRenderMatriz();vCalcTotal()">✕</button>
@@ -1773,7 +1778,8 @@ function vAddFila(){
 
 function vCalcTotal(){
   const subtotal=(vMatriz||[]).reduce((a,r)=>a+(+r.precioCliente||0),0);
-  const dc=+(document.getElementById('vDcto')?.value)||0;
+  const dcEl=document.getElementById('vDcto');
+  const dc=parseFloat((dcEl?.dataset.rawVal||dcEl?.value||'0').replace(/[^0-9.]/g,''))||0;
   const itbisOn=document.getElementById('vItbisToggle')?.checked;
   const itbis=itbisOn?Math.round(subtotal*0.18):0;
   const total=subtotal+itbis-dc;
@@ -1988,8 +1994,8 @@ function renderFact(search='',filtroEstatus=''){
 }
 function updateItbisLabel(){const on=document.getElementById('itbisToggle').checked;const lb=document.getElementById('itbisLabel');lb.textContent=on?'✅ Aplica ITBIS':'❌ No aplica';lb.style.color=on?'var(--success)':'var(--text2)';document.getElementById('itbisRow').style.opacity=on?'1':'0.4';}
 function openFactModal(id=null,preV=null){editId.f=id;document.getElementById('factModalTitle').textContent=id?'Editar Factura':'Nueva Factura';document.getElementById('fCliente').innerHTML=DB.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');document.getElementById('fVehiculo').innerHTML='<option value="">-- Seleccione --</option>'+DB.vehiculos.map(v=>`<option value="${v.id}">${v.vehiculo}</option>`).join('');document.getElementById('fFecha').value=new Date().toISOString().split('T')[0];document.getElementById('fDcto').value='0';document.getElementById('fObs').value='';document.getElementById('factItems').innerHTML='';const tog=document.getElementById('itbisToggle');tog.checked=false;updateItbisLabel();if(id){const f=DB.facturas.find(x=>x.id===id);document.getElementById('fCliente').value=f.clienteId;document.getElementById('fChasis').value=f.chasis;document.getElementById('fColor').value=f.color||'';const cl=DB.clientes.find(c=>c.id===f.clienteId);document.getElementById('fTel').value=cl?.tel1||'';document.getElementById('fTipoVeh').value=f.tipoVeh;document.getElementById('fDcto').value=f.dcto;document.getElementById('fEstatus').value=f.estatus;document.getElementById('fObs').value=f.obs||'';tog.checked=f.aplicaItbis;updateItbisLabel();f.items.forEach(it=>addFactRow(it.desc,it.ud,it.precio));}else if(preV){document.getElementById('fCliente').value=preV.clienteId;document.getElementById('fVehiculo').value=preV.id;document.getElementById('fChasis').value=preV.chasis;document.getElementById('fColor').value=preV.color;const cl=DB.clientes.find(c=>c.id===preV.clienteId);document.getElementById('fTel').value=cl?.tel1||'';if(cl?.rnc){tog.checked=true;updateItbisLabel();}addFactRow();}else{addFactRow();}calcTotals();populateBancosSelects();openModal(`factModal`);}
-function addFactRow(desc='',ud=1,precio=0){const tr=document.createElement('tr');tr.innerHTML=`<td><input class="form-control" value="${desc}" placeholder="Descripción pieza/servicio" style="width:100%;"></td><td><input type="number" class="form-control" value="${ud}" min="1" oninput="calcTotals()" style="width:65px;"></td><td><input type="number" class="form-control" value="${precio}" oninput="calcTotals()" placeholder="0"></td><td><button class="btn-icon del" onclick="this.closest('tr').remove();calcTotals()">✕</button></td>`;document.getElementById('factItems').appendChild(tr);calcTotals();}
-function calcTotals(){let sub=0;document.querySelectorAll('#factItems tr').forEach(tr=>{const i=tr.querySelectorAll('input');sub+=(+i[1].value||1)*(+i[2].value||0);});const aI=document.getElementById('itbisToggle').checked;const itbis=aI?Math.round(sub*0.18):0;const dc=+document.getElementById('fDcto').value||0;document.getElementById('fSub').textContent=fmt(sub);document.getElementById('fItbis').textContent=aI?fmt(itbis):'No aplica';document.getElementById('fDcto2').textContent=fmt(dc);document.getElementById('fTotal').textContent=fmt(sub+itbis-dc);}
+function addFactRow(desc='',ud=1,precio=0){const tr=document.createElement('tr');const precioFmt=precio?Number(precio).toLocaleString('es-DO'):'';tr.innerHTML=`<td><input class="form-control" value="${desc}" placeholder="Descripción pieza/servicio" style="width:100%;"></td><td><input type="number" class="form-control" value="${ud}" min="1" oninput="calcTotals()" style="width:65px;"></td><td><input type="text" inputmode="decimal" class="form-control" value="${precioFmt}" oninput="fmtPesosInput(this);calcTotals()" placeholder="0" ${precio?`data-raw-val="${precio}"`:''}></td><td><button class="btn-icon del" onclick="this.closest('tr').remove();calcTotals()">✕</button></td>`;document.getElementById('factItems').appendChild(tr);calcTotals();}
+function calcTotals(){let sub=0;document.querySelectorAll('#factItems tr').forEach(tr=>{const i=tr.querySelectorAll('input');const precio=parseFloat((i[2]?.dataset?.rawVal||i[2]?.value||'0').replace(/[^0-9.]/g,''))||0;sub+=(+i[1].value||1)*precio;});const aI=document.getElementById('itbisToggle').checked;const itbis=aI?Math.round(sub*0.18):0;const dcEl=document.getElementById('fDcto');const dc=parseFloat((dcEl?.dataset.rawVal||dcEl?.value||'0').replace(/[^0-9.]/g,''))||0;document.getElementById('fSub').textContent=fmt(sub);document.getElementById('fItbis').textContent=aI?fmt(itbis):'No aplica';document.getElementById('fDcto2').textContent=fmt(dc);document.getElementById('fTotal').textContent=fmt(sub+itbis-dc);}
 function saveFact(){const items=[];let sub=0;document.querySelectorAll('#factItems tr').forEach(tr=>{const i=tr.querySelectorAll('input');const p=(+i[1].value||1)*(+i[2].value||0);items.push({desc:i[0].value,ud:+i[1].value,precio:+i[2].value});sub+=p;});const aI=document.getElementById('itbisToggle').checked;const itbis=aI?Math.round(sub*0.18):0;const dc=+document.getElementById('fDcto').value||0;const obj={fecha:document.getElementById('fFecha').value,clienteId:+document.getElementById('fCliente').value,vehiculo:document.getElementById('fVehiculo').options[document.getElementById('fVehiculo').selectedIndex]?.text||'N/A',chasis:document.getElementById('fChasis').value,color:document.getElementById('fColor').value,tipoVeh:document.getElementById('fTipoVeh').value,items,subtotal:sub,itbis,aplicaItbis:aI,dcto:dc,total:sub+itbis-dc,estatus:document.getElementById(`fEstatus`).value,obs:document.getElementById(`fObs`).value,cuentaBancoId:document.getElementById(`fCuentaBanco`)?.value||``};if(editId.f){obj.id=editId.f;DB.facturas[DB.facturas.findIndex(x=>x.id===editId.f)]=obj;toast('Factura actualizada ✓');logBit('FACTURA','Factura editada',`#${obj.id} — Estatus: ${obj.estatus}`);}else{obj.id=DB.nxt.f++;DB.facturas.push(obj);toast('Factura guardada ✓');logBit('FACTURA','Nueva factura',`#${obj.id} — ${DB.clientes.find(c=>c.id===obj.clienteId)?.nombre||'-'} — ${fmt(obj.total)}`);}window.fbSaveDoc?.('facturas',obj);closeModal('factModal');renderFact();return obj.id;}
 function saveAndPrint(){const id=saveFact();setTimeout(()=>viewInv(id),200);}
 function delFact(id){confirm2('¿Eliminar factura?',function(ok){if(!ok)return;DB.facturas=DB.facturas.filter(x=>x.id!==id);window.fbDeleteDoc?.('facturas',id);renderFact();toast('Eliminada','info');});}
@@ -2033,7 +2039,7 @@ function renderVehRecepciones(){
       <td class="fw-600">${fmt(r.totalEst||0)}</td>
       <td><span class="badge badge-${sM[r.estado]||'info'}">${r.estado}</span></td>
       <td><div class="flex gap-2">
-        <button class="btn btn-sm btn-primary" onclick="crearOrdenDesdeRecep(${r.id})" title="Crear orden de trabajo">🔧 Crear Orden</button>
+        <button class="btn btn-sm btn-secondary" onclick="openRecepcionModal(${r.id})" title="Ver y editar esta orden">✏️ Editar Orden</button>
         <button class="btn-icon" onclick="printPrefactura(${r.id})" title="Ver recepción">📋</button>
       </div></td>
     </tr>`;
@@ -2160,8 +2166,8 @@ function renderEmpTrabajos(){
       ${row.fechaTerminado?`<br><small style="color:var(--success);font-size:.7rem;">🕐 ${row.fechaTerminado} ${row.horaTerminado||''}</small>`:''}
     </td>
     <td>${(row.estado==='COMPLETADO'||row.estado==='TERMINADO')?
-      `<input type="number" class="form-control" style="width:110px;font-size:.8rem;padding:4px 6px;" placeholder="0" value="${row.pagoTech||''}"
-        onchange="actualizarPagoTech(${row.recepId},${row.filaIdx},+this.value)">`:
+      `<input type="text" inputmode="decimal" class="form-control" style="width:110px;font-size:.8rem;padding:4px 6px;" placeholder="0" value="${row.pagoTech?Number(row.pagoTech).toLocaleString('es-DO'):''}"
+        oninput="fmtPesosInput(this);actualizarPagoTech(${row.recepId},${row.filaIdx},parseFloat((this.dataset.rawVal||this.value).replace(/[^0-9.]/g,''))||0)">`:
       `<span style="font-size:.75rem;color:var(--text2);">Esperar conclusión</span>`
     }</td>
     <td>${(row.estado==='COMPLETADO'||row.estado==='TERMINADO')?
@@ -2436,8 +2442,8 @@ function sFmtDoc(){const t=document.getElementById('sTipoDoc').value;let v=docum
 function saveSup(){const n=document.getElementById('sNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),tipoDoc:document.getElementById('sTipoDoc').value,ncf:document.getElementById('sNcf').value,dir:document.getElementById('sDir').value,ciudad:document.getElementById('sCiudad').value.toUpperCase(),tel1:document.getElementById('sTel1').value,tel2:document.getElementById('sTel2').value};if(editId.s){obj.id=editId.s;DB.suplidores[DB.suplidores.findIndex(x=>x.id===editId.s)]=obj;toast('Suplidor actualizado ✓');}else{obj.id=DB.nxt.s++;DB.suplidores.push(obj);toast('Suplidor guardado ✓');}window.fbSaveDoc?.('suplidores',obj);closeModal('supModal');renderSup();}
 function delSup(id){confirm2('¿Eliminar suplidor?',function(ok){if(!ok)return;DB.suplidores=DB.suplidores.filter(x=>x.id!==id);renderSup();toast('Eliminado','info');});}
 function renderCaja(f='',s=''){let d=DB.caja;if(f)d=d.filter(c=>c.mover===f);if(s)d=d.filter(c=>(c.desc+c.persona+c.cuenta).toLowerCase().includes(s.toLowerCase()));const en=DB.caja.filter(c=>c.mover==='ENTRADA').reduce((a,c)=>a+c.monto,0);const sa=DB.caja.filter(c=>c.mover==='SALIDA').reduce((a,c)=>a+c.monto,0);document.getElementById('cajaStats').innerHTML=`<div class="stat-card green"><div class="stat-icon">⬆️</div><div class="stat-value">${fmt(en)}</div><div class="stat-label">Total Entradas</div></div><div class="stat-card red"><div class="stat-icon">⬇️</div><div class="stat-value">${fmt(sa)}</div><div class="stat-label">Total Salidas</div></div><div class="stat-card blue"><div class="stat-icon">💳</div><div class="stat-value">${fmt(en-sa)}</div><div class="stat-label">Balance</div></div><div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${DB.caja.filter(c=>c.estatus==='POR PAGAR').length}</div><div class="stat-label">Por Pagar</div></div>`;const sM={PAGADO:'success','POR PAGAR':'warning',COBRADO:'info','POR COBRAR':'danger','EN TRÁNSITO':'info',ANULADO:'danger',DEPOSITADO:'success'};document.getElementById('cajaTable').innerHTML=d.map(c=>{const mv=c.mover==='ENTRADA'?'<span class="text-success fw-600">⬆️ ENT.</span>':'<span class="text-danger fw-600">⬇️ SAL.</span>';return`<tr><td>${c.id}</td><td>${fmtD(c.fecha)}</td><td style="font-size:.8rem;">${c.tipo}</td><td style="font-size:.76rem;">${c.cuenta}</td><td style="font-size:.82rem;">${c.desc}</td><td>${c.factura||'-'}</td><td>${mv}</td><td>${c.moneda}</td><td class="fw-600 ${c.mover==='ENTRADA'?'text-success':'text-danger'}">${fmt(c.monto)}</td><td><span class="badge badge-${sM[c.estatus]||'info'}">${c.estatus}</span></td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openCajaModal(${c.id})">✏️</button><button class="btn-icon del" onclick="delCaja(${c.id})">🗑️</button></div></td></tr>`;}).join('')||'<tr><td colspan="11" class="text-center" style="padding:24px;color:var(--text2);">Sin movimientos</td></tr>';}
-function openCajaModal(id=null){editId.cj=id;document.getElementById('cajaModalTitle').textContent=id?'Editar Movimiento':'Nuevo Movimiento';document.getElementById('cajFecha').value=new Date().toISOString().split('T')[0];if(id){const c=DB.caja.find(x=>x.id===id);document.getElementById('cajFecha').value=c.fecha;document.getElementById('cajTipo').value=c.tipo;document.getElementById('cajCuenta').value=c.cuenta;document.getElementById('cajMover').value=c.mover;document.getElementById('cajMoneda').value=c.moneda;document.getElementById('cajMonto').value=c.monto;document.getElementById('cajFact').value=c.factura;document.getElementById('cajEst').value=c.estatus;document.getElementById('cajDesc').value=c.desc;document.getElementById('cajPersona').value=c.persona;}else{['cajMonto','cajFact','cajDesc','cajPersona'].forEach(i=>document.getElementById(i).value='');}openModal('cajaModal');}
-function saveCaja(){const m=+document.getElementById('cajMonto').value;if(!m){toast('Ingrese monto','error');return;}const obj={fecha:document.getElementById('cajFecha').value,tipo:document.getElementById('cajTipo').value,cuenta:document.getElementById('cajCuenta').value,mover:document.getElementById('cajMover').value,moneda:document.getElementById('cajMoneda').value,monto:m,factura:document.getElementById('cajFact').value,estatus:document.getElementById('cajEst').value,desc:document.getElementById('cajDesc').value,persona:document.getElementById('cajPersona').value};if(editId.cj){obj.id=editId.cj;DB.caja[DB.caja.findIndex(x=>x.id===editId.cj)]=obj;toast('Movimiento actualizado ✓');}else{obj.id=DB.nxt.cj++;DB.caja.push(obj);toast('Movimiento guardado ✓');}window.fbSaveDoc?.('caja',obj);closeModal('cajaModal');renderCaja();}
+function openCajaModal(id=null){editId.cj=id;document.getElementById('cajaModalTitle').textContent=id?'Editar Movimiento':'Nuevo Movimiento';document.getElementById('cajFecha').value=new Date().toISOString().split('T')[0];if(id){const c=DB.caja.find(x=>x.id===id);document.getElementById('cajFecha').value=c.fecha;document.getElementById('cajTipo').value=c.tipo;document.getElementById('cajCuenta').value=c.cuenta;document.getElementById('cajMover').value=c.mover;document.getElementById('cajMoneda').value=c.moneda;const cajM=document.getElementById('cajMonto');cajM.value=c.monto?Number(c.monto).toLocaleString('es-DO'):'';cajM.dataset.rawVal=c.monto||'';document.getElementById('cajFact').value=c.factura;document.getElementById('cajEst').value=c.estatus;document.getElementById('cajDesc').value=c.desc;document.getElementById('cajPersona').value=c.persona;}else{['cajFact','cajDesc','cajPersona'].forEach(i=>document.getElementById(i).value='');const cajM=document.getElementById('cajMonto');cajM.value='';cajM.dataset.rawVal='';}openModal('cajaModal');}
+function saveCaja(){const el=document.getElementById('cajMonto');const m=parseFloat((el?.dataset.rawVal||el?.value||'0').replace(/[^0-9.]/g,''))||0;if(!m){toast('Ingrese monto','error');return;}const obj={fecha:document.getElementById('cajFecha').value,tipo:document.getElementById('cajTipo').value,cuenta:document.getElementById('cajCuenta').value,mover:document.getElementById('cajMover').value,moneda:document.getElementById('cajMoneda').value,monto:m,factura:document.getElementById('cajFact').value,estatus:document.getElementById('cajEst').value,desc:document.getElementById('cajDesc').value,persona:document.getElementById('cajPersona').value};if(editId.cj){obj.id=editId.cj;DB.caja[DB.caja.findIndex(x=>x.id===editId.cj)]=obj;toast('Movimiento actualizado ✓');}else{obj.id=DB.nxt.cj++;DB.caja.push(obj);toast('Movimiento guardado ✓');}window.fbSaveDoc?.('caja',obj);closeModal('cajaModal');renderCaja();}
 function delCaja(id){confirm2('¿Eliminar movimiento?',function(ok){if(!ok)return;DB.caja=DB.caja.filter(x=>x.id!==id);renderCaja();toast('Eliminado','info');});}
 function calcGananciaOrden(v){
   const ingreso=v.monto||0;
@@ -2467,7 +2473,10 @@ function renderUsers(){
          ...((u.permisos.facturacion?.crear||u.permisos.caja?.crear)?['perm_cobrar']:[]),
          ...((u.permisos.cxp?.editar||u.permisos.caja?.crear)?['perm_pagar']:[])
         ] : []);
+    const techRolesArr=['pintor','desabollador','tecnico'];
+    const isTechRole=techRolesArr.includes(u.rol);
     const perms=isAdmin?'<span class="badge badge-success" style="font-size:.68rem;">Todos los permisos</span>':
+      (isTechRole&&u.empId)?'<span class="badge badge-info" style="font-size:.68rem;">🔧 Portal Técnico</span>':
       permsArr.length?
       (permsArr.includes('perm_editar')?'<span class="badge badge-info" style="font-size:.65rem;margin:1px;">✏️ Editar</span>':'')+
       (permsArr.includes('perm_borrar')?'<span class="badge badge-danger" style="font-size:.65rem;margin:1px;">🗑️ Borrar</span>':'')+
@@ -2477,7 +2486,7 @@ function renderUsers(){
     return`<tr>
       <td>${u.id}</td>
       <td class="fw-600">${u.user}</td>
-      <td>${u.nombre}</td>
+      <td>${u.nombre}${u.obs?`<br><small style="color:var(--text2);font-size:.72rem;">📝 ${u.obs}</small>`:''}</td>
       <td><span class="badge ${isAdmin?'badge-primary':'badge-secondary'}">${ROL_BADGE[u.rol]||u.rol}</span></td>
       <td style="max-width:180px;font-size:.78rem;">${mods}</td>
       <td style="max-width:150px;">${perms}</td>
@@ -2506,6 +2515,7 @@ function openUserModal(id=null){
     document.getElementById('uRol').value=u.rol;
     document.getElementById('uEstado').value=u.estado;
     if(empSel) empSel.value=u.empId||'';
+    document.getElementById('uObs').value=u.obs||'';
     document.querySelectorAll('#modulesCheck input').forEach(cb=>cb.checked=u.modulos?.includes(cb.value));
     document.querySelectorAll('#permisosCheck input').forEach(cb=>cb.checked=(u.permisos||[]).includes(cb.value));
   } else {
@@ -2513,6 +2523,7 @@ function openUserModal(id=null){
     document.getElementById('uRol').value='operador';
     document.getElementById('uEstado').value='activo';
     if(empSel) empSel.value='';
+    document.getElementById('uObs').value='';
     document.querySelectorAll('#modulesCheck input').forEach(cb=>cb.checked=false);
     document.querySelectorAll('#permisosCheck input').forEach(cb=>cb.checked=false);
   }
@@ -2567,7 +2578,8 @@ function saveUser(){
     permisos:permsSimple,           // array simple: ['perm_editar',...]
     permisosGranulares:permsGranular, // objeto: {vehiculos:{ver,editar,...},...}
     estado:document.getElementById('uEstado').value,
-    empId: +document.getElementById('uEmpId')?.value||null
+    empId: +document.getElementById('uEmpId')?.value||null,
+    obs: document.getElementById('uObs')?.value.trim()||''
   };
 
   if(editId.u){
@@ -2658,7 +2670,7 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
         <div style="background:#f8fafc;border-radius:10px;padding:14px;">
           <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.9rem;margin-bottom:10px;color:var(--text);">💰 Presupuesto</div>
-          <div class="form-row"><label class="form-label">Descuento (RD$)</label><input type="number" class="form-control" id="rpDcto" placeholder="0" oninput="rpCalcTotal()"></div>
+          <div class="form-row"><label class="form-label">Descuento (RD$)</label><input type="text" inputmode="decimal" class="form-control" id="rpDcto" placeholder="0" oninput="fmtPesosInput(this);rpCalcTotal()"></div>
           <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
             <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
               <div><div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.85rem;color:#15803d;">ITBIS 18%</div><div style="font-size:.7rem;color:#16a34a;">Si el cliente requiere comprobante fiscal</div></div>
@@ -2838,7 +2850,7 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
         </div>
         <div class="form-row">
           <label class="form-label">Monto (RD$) *</label>
-          <input type="number" id="cxpMonto" class="form-control" placeholder="0.00">
+          <input type="text" inputmode="decimal" id="cxpMonto" class="form-control" placeholder="0.00" oninput="fmtPesosInput(this)">
         </div>
         <div class="form-row">
           <label class="form-label">Fecha Vencimiento *</label>
@@ -2972,7 +2984,8 @@ function openCXPModal(id=null){
 function saveCXP(){
   const s = document.getElementById('cxpSuplidor').value;
   const c = document.getElementById('cxpConcepto').value.trim();
-  const m = +document.getElementById('cxpMonto').value;
+  const mEl=document.getElementById('cxpMonto');
+  const m=parseFloat((mEl?.dataset.rawVal||mEl?.value||'0').replace(/[^0-9.]/g,''))||0;
   if(!s||!c||!m){toast('Complete todos los campos','error');return;}
   const cuentaBancoId = document.getElementById('cxpCuentaBanco')?.value||'';
   const obj = {suplidor:s, concepto:c.toUpperCase(), monto:m, vence:document.getElementById('cxpVence').value, estado:document.getElementById('cxpEstado').value||'PENDIENTE', cuentaBancoId};
@@ -3874,7 +3887,8 @@ function rpGetServs(){
 
 function rpCalcTotal(){
   const subtotal=(rpMatriz||[]).reduce((a,r)=>a+(+r.precioCliente||0),0);
-  const dc=+(document.getElementById('rpDcto')?.value)||0;
+  const dcEl=document.getElementById('rpDcto');
+  const dc=parseFloat((dcEl?.dataset.rawVal||dcEl?.value||'0').replace(/[^0-9.]/g,''))||0;
   const itbisOn=document.getElementById('rpItbisToggle')?.checked;
   const itbis=itbisOn?Math.round(subtotal*0.18):0;
   const total=subtotal+itbis-dc;
@@ -4107,8 +4121,9 @@ function rpRenderMatriz(){
         </select>
       </td>
       <td style="padding:6px 6px;">
-        <input type="number" class="form-control" style="font-size:.8rem;padding:5px 8px;width:110px;" placeholder="0"
-          value="${row.precioCliente||''}" oninput="rpMatriz[${i}].precioCliente=+this.value;rpCalcTotal()">
+        <input type="text" inputmode="decimal" class="form-control" style="font-size:.8rem;padding:5px 8px;width:110px;" placeholder="0"
+          value="${row.precioCliente?Number(row.precioCliente).toLocaleString('es-DO'):''}"
+          oninput="fmtPesosInput(this);rpMatriz[${i}].precioCliente=parseFloat((this.dataset.rawVal||this.value).replace(/[^0-9.]/g,''))||0;rpCalcTotal()">
       </td>
       <td style="padding:6px 4px;text-align:center;">
         <button class="btn-icon del" onclick="delete rpMatriz[${i}];rpMatriz=rpMatriz.filter((_,j)=>j!==${i});rpRenderMatriz();rpCalcTotal()">✕</button>
@@ -5084,7 +5099,7 @@ const PRESETS={
   secretaria:()=>_allPerms(['dashboard','recepcion','vehiculos','facturacion','clientes',
     'empleados','suplidores','materiales','inventario','cxp','caja','bancos','reportes','bitacora']),
 
-  // Pintor: su trabajo y materiales
+  // Pintor: su trabajo y materiales + permiso editar para marcar trabajos
   pintor:()=>({
     dashboard:{ver:true},
     recepcion:{ver:true},
@@ -5440,10 +5455,51 @@ function saveMat(keepOpen=false){
 // FORMATO PESOS — aplicar al escribir
 // ═══════════════════════════════════════
 function fmtPesosInput(input){
-  let v=input.value.replace(/[^0-9]/g,'');
-  if(!v){input.value='';return;}
-  input.value=Number(v).toLocaleString('es-DO');
+  // Permite decimales: 10,250.50
+  let raw = input.value.replace(/[^0-9.]/g,'');
+  // Evitar múltiples puntos
+  const parts = raw.split('.');
+  if(parts.length > 2) raw = parts[0]+'.'+parts.slice(1).join('');
+  if(!raw){input.value='';input.dataset.rawVal='';return;}
+  const intPart = parts[0]||'0';
+  const decPart = parts[1]!==undefined ? '.'+parts[1] : '';
+  input.dataset.rawVal = raw; // guardar valor numérico real
+  input.value = Number(intPart).toLocaleString('es-DO') + decPart;
 }
+
+// Leer valor numérico real de un input formateado
+function getMoneyVal(id){
+  const el = document.getElementById(id);
+  if(!el) return 0;
+  const raw = (el.dataset.rawVal||el.value).replace(/[^0-9.]/g,'');
+  return parseFloat(raw)||0;
+}
+
+// Formatear un input de dinero al escribir (sin perder cursor)
+function moneyInput(el, callback){
+  el.addEventListener('input', function(){
+    const pos = this.selectionStart;
+    const prev = this.value.length;
+    fmtPesosInput(this);
+    const diff = this.value.length - prev;
+    try{ this.setSelectionRange(pos+diff, pos+diff); }catch(e){}
+    if(callback) callback(parseFloat((this.dataset.rawVal||'0').replace(/[^0-9.]/g,''))||0);
+  });
+}
+
+// Aplicar formato moneda a todos los inputs de dinero al cargar
+document.addEventListener('DOMContentLoaded', function(){
+  // IDs fijos de campos de dinero
+  const moneyIds=['cajMonto','cxpMonto','rpDcto','rpPagoMonto','vDcto','vPagoMonto',
+    'eTarifa','rpPagoMonto','abonoMonto','cxpMontoAbono'];
+  moneyIds.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el && el.type==='number'){
+      el.type='text';
+      el.addEventListener('input',function(){ fmtPesosInput(this); });
+    }
+  });
+});
 
 // ═══════════════════════════════════════
 // ORDEN DE TRABAJO — Alertas de entrega
