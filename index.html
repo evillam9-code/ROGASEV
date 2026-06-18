@@ -999,7 +999,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
             <span class="card-title">Historial de Pagos a Técnicos</span>
             <select id="empPagoFiltroEmp" class="form-control" style="width:220px;" onchange="renderEmpPagosTab()"><option value="">Todos los empleados</option></select>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Tipo</th><th>Concepto / Vehículo</th><th>Monto</th><th>Cuenta Pago</th><th>Estado</th></tr></thead><tbody id="empPagosTabTable"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Tipo</th><th>Concepto / Vehículo</th><th>Fecha</th><th>Monto</th><th>Cuenta Pago</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="empPagosTabTable"></tbody></table></div>
         </div>
       </div>
     </div>
@@ -2150,7 +2150,7 @@ function renderEmpTrabajos(){
       if(!emp) return;
       if(filtroId && emp.id!==filtroId) return;
       if(fila.pagado) return; // ya pagado, no mostrar
-      rows.push({recepId:r.id,filaIdx:idx,empId:emp.id,empNombre:emp.nombre,vehiculo:r.nombre,tipo:fila.tipo,pieza:fila.pieza,precioCliente:fila.precioCliente||0,estado:fila.estado||'PENDIENTE',pagoTech:fila.pagoTech||0,fechaTerminado:fila.fechaTerminado||'',horaTerminado:fila.horaTerminado||''});
+      rows.push({recepId:r.id,filaIdx:idx,empId:emp.id,empNombre:emp.nombre,vehiculo:r.nombre,tipo:fila.tipo,pieza:fila.pieza,precioCliente:fila.precioCliente||0,estado:fila.estado||'PENDIENTE',pagoTech:fila.pagoTech||0,fechaTerminado:fila.fechaTerminado||'',horaTerminado:fila.horaTerminado||'',comentario:fila.comentarioTech||''});
     });
   });
   const estBadge={PENDIENTE:'badge-warning',EN_PROCESO:'badge-info','EN PROCESO':'badge-info',COMPLETADO:'badge-success',TERMINADO:'badge-success'};
@@ -2159,7 +2159,7 @@ function renderEmpTrabajos(){
     <td style="font-size:.82rem;">${row.vehiculo}</td>
     <td class="fw-600">${row.empNombre}</td>
     <td>${row.tipo||'—'}</td>
-    <td style="font-size:.82rem;">${row.pieza||'—'}</td>
+    <td style="font-size:.82rem;">${row.pieza||'—'}${row.comentario?`<br><small style="color:var(--info);">💬 ${row.comentario}</small>`:''}</td>
     <td class="fw-600">${fmt(row.precioCliente)}</td>
     <td>
       <span class="badge ${estBadge[row.estado]||'badge-warning'}">${row.estado||'PENDIENTE'}</span>
@@ -2210,11 +2210,12 @@ function registrarPagoTech(recepId, filaIdx, empId){
   });
   // Guardar en historial del técnico (en recepciones)
   if(!r.pagosRegistrados) r.pagosRegistrados=[];
-  r.pagosRegistrados.push({empId,empNombre:emp?.nombre||'',filaIdx,tipo:fila.tipo,pieza:fila.pieza,monto,fecha:new Date().toISOString().split('T')[0]});
+  r.pagosRegistrados.push({empId,empNombre:emp?.nombre||'',filaIdx,tipo:fila.tipo,pieza:fila.pieza,monto,fecha:new Date().toISOString().split('T')[0],comentarioTech:fila.comentarioTech||''});
   window.fbSaveDoc?.('recepciones',r);
   logBit('PAGO','Pago técnico',`${emp?.nombre||''} — Orden #${recepId} — ${fmt(monto)}`);
   toast(`✅ Pago de ${fmt(monto)} registrado para ${emp?.nombre||'técnico'}`);
   renderEmpTrabajos();
+  renderEmpPagosTab();
   renderEmp();
 }
 
@@ -2283,44 +2284,165 @@ function printReciboTecnico(empId){
 }
 
 function renderEmpPagosTab(){
-  // Populate employee filter select
   const sel=document.getElementById('empPagoFiltroEmp');
   if(sel){sel.innerHTML='<option value="">Todos los empleados</option>'+DB.empleados.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('');}
   const filtroId=sel?+sel.value||0:0;
-  // Gather all ajustes from vehiculos
   const rows=[];
-  DB.vehiculos.forEach(v=>{
-    v.ajustes.forEach(aj=>{
-      if(filtroId && aj.empId!==filtroId) return;
-      const emp=DB.empleados.find(e=>e.id===aj.empId);
+
+  // ── Pagos desde recepciones (pagosRegistrados) ──────────────────
+  DB.recepciones.forEach(r=>{
+    (r.pagosRegistrados||[]).forEach((p,pIdx)=>{
+      const emp=DB.empleados.find(e=>e.id===p.empId);
       if(!emp) return;
-      rows.push({nombre:emp.nombre,cargo:emp.cargo,tipo:'AJUSTE',concepto:`${aj.tipoTrabajo||''} — ${v.vehiculo}`,monto:aj.monto,cuentaId:aj.cuentaPagoId||'',pagado:aj.pagado});
+      if(filtroId && emp.id!==filtroId) return;
+      rows.push({
+        source:'recepcion', recepId:r.id, pIdx,
+        nombre:emp.nombre, cargo:emp.cargo, empId:emp.id,
+        tipo:'AJUSTE',
+        concepto:`${p.tipo||''} — ${p.pieza||''} · ${r.nombre}`,
+        comentario: p.comentarioTech||r.matriz?.[p.filaIdx]?.comentarioTech||'',
+        monto:p.monto, fecha:p.fecha||'—',
+        cuentaId:'', pagado:true
+      });
     });
   });
-  // Include CXP nómina
+
+  // ── Ajustes de vehículos (legado) ────────────────────────────────
+  DB.vehiculos.forEach(v=>{
+    (v.ajustes||[]).forEach((aj,ajIdx)=>{
+      const emp=DB.empleados.find(e=>e.id===aj.empId);
+      if(!emp) return;
+      if(filtroId && emp.id!==filtroId) return;
+      rows.push({
+        source:'vehiculo', vehiculoId:v.id, ajIdx,
+        nombre:emp.nombre, cargo:emp.cargo, empId:emp.id,
+        tipo:'AJUSTE',
+        concepto:`${aj.tipoTrabajo||''} — ${v.vehiculo}`,
+        monto:aj.monto, fecha:'—',
+        cuentaId:aj.cuentaPagoId||'', pagado:aj.pagado
+      });
+    });
+  });
+
+  // ── Nómina CXP ───────────────────────────────────────────────────
   (DB.cxp||[]).filter(c=>c.tipo==='NOMINA').forEach(c=>{
     const empMatch=DB.empleados.find(e=>e.nombre===c.suplidor);
     if(filtroId && (!empMatch||empMatch.id!==filtroId)) return;
     const banco=c.cuentaBancoId?(DB.bancos||[]).find(b=>b.id==c.cuentaBancoId):null;
-    rows.push({nombre:c.suplidor,cargo:'—',tipo:'NÓMINA CXP',concepto:c.concepto,monto:c.monto,cuentaId:c.cuentaBancoId||'',pagado:c.estado==='PAGADA',bancoLabel:banco?`${banco.banco} — ${banco.numCuenta}`:''});
+    rows.push({
+      source:'cxp', cxpId:c.id,
+      nombre:c.suplidor, cargo:'—', empId:empMatch?.id||0,
+      tipo:'NÓMINA CXP', concepto:c.concepto,
+      monto:c.monto, fecha:'—',
+      cuentaId:c.cuentaBancoId||'', pagado:c.estado==='PAGADA',
+      bancoLabel:banco?`${banco.banco} — ${banco.numCuenta}`:''
+    });
   });
+
   const tbody=document.getElementById('empPagosTabTable');
   if(!tbody) return;
-  tbody.innerHTML=rows.length?rows.map(r=>{
-    const banco=r.bancoLabel||(r.cuentaId?(DB.bancos||[]).find(b=>b.id==r.cuentaId)?.banco+'':'-');
+  tbody.innerHTML=rows.length?rows.map((r,i)=>{
+    const banco=r.bancoLabel||(r.cuentaId?(DB.bancos||[]).find(b=>b.id==r.cuentaId)?.banco||'-':'-');
+    const estadoBadge=r.pagado
+      ?'<span class="badge badge-success">✅ Pagado</span>'
+      :'<span class="badge badge-warning">⏳ Pendiente</span>';
+    // Acciones solo para pagos de recepciones
+    let acciones='—';
+    if(r.source==='recepcion'){
+      acciones=`
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-warning" onclick="editarPagoHist(${r.recepId},${r.pIdx})" title="Editar monto">✏️</button>
+          <button class="btn btn-sm btn-secondary" onclick="revertirPagoHist(${r.recepId},${r.pIdx})" title="Revertir pago">↩️</button>
+          <button class="btn-icon del" onclick="eliminarPagoHist(${r.recepId},${r.pIdx})" title="Eliminar">🗑️</button>
+        </div>`;
+    }
     return`<tr>
       <td class="fw-600">${r.nombre}<br><small style="color:var(--text2);">${r.cargo}</small></td>
       <td><span class="badge badge-info">${r.tipo}</span></td>
-      <td style="font-size:.82rem;">${r.concepto}</td>
+      <td style="font-size:.82rem;">${r.concepto}${r.comentario?`<br><small style="color:var(--info);font-size:.72rem;">💬 ${r.comentario}</small>`:''}</td>
+      <td style="font-size:.8rem;">${r.fecha}</td>
       <td class="fw-600">${fmt(r.monto)}</td>
-      <td style="font-size:.8rem;">${banco||'<span style="color:var(--text2);">—</span>'}</td>
-      <td>${r.pagado?'<span class="badge badge-success">✅ Pagado</span>':'<span class="badge badge-warning">⏳ Pendiente</span>'}</td>
+      <td style="font-size:.8rem;">${banco}</td>
+      <td>${estadoBadge}</td>
+      <td>${acciones}</td>
     </tr>`;
-  }).join(''):'<tr><td colspan="6" class="text-center" style="padding:24px;color:var(--text2);">Sin pagos registrados</td></tr>';
+  }).join(''):'<tr><td colspan="8" class="text-center" style="padding:24px;color:var(--text2);">Sin pagos registrados</td></tr>';
 }
 
-function renderEmp(s=''){let d=DB.empleados;if(s)d=d.filter(e=>(e.nombre+e.cargo).toLowerCase().includes(s.toLowerCase()));const ajPT=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>!aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const ajPaT=DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);const fiT=DB.empleados.filter(e=>e.tipo==='FIJO').reduce((a,e)=>a+e.tarifa,0);document.getElementById('empStats').innerHTML=`<div class="stat-card blue"><div class="stat-icon">👷</div><div class="stat-value">${DB.empleados.length}</div><div class="stat-label">Total Empleados</div></div><div class="stat-card red"><div class="stat-icon">🔧</div><div class="stat-value">${DB.empleados.filter(e=>e.tipo==='AJUSTE').length}</div><div class="stat-label">Por Ajuste</div></div><div class="stat-card purple"><div class="stat-icon">💼</div><div class="stat-value">${fmt(fiT)}</div><div class="stat-label">Salarios Fijos/Mes</div></div><div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${fmt(ajPT)}</div><div class="stat-label">Ajustes Pendientes</div></div><div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${fmt(ajPaT)}</div><div class="stat-label">Ajustes Pagados</div></div>`;
-document.getElementById('empTable').innerHTML=d.map(e=>{const tB=e.tipo==='FIJO'?'<span class="badge badge-secondary">💼 FIJO</span>':'<span class="badge badge-primary">🔧 AJUSTE</span>';return`<tr><td>${e.id}</td><td class="fw-600">${e.nombre}</td><td><span class="badge badge-info">${e.cargo}</span></td><td>${tB}</td><td>${e.tipo==='FIJO'?fmt(e.tarifa)+' / mes':'Por orden'}</td><td><span class="badge badge-success">${e.estado}</span></td><td><div class="flex gap-2"><button class="btn btn-sm btn-warning" onclick="openEmpPagos(${e.id})">💰 Pagos</button><button class="btn btn-sm btn-secondary" onclick="printReciboTecnico(${e.id})">🖨️ Recibo</button>${canEdit()?`<button class="btn-icon edit" onclick="openEmpModal(${e.id})">✏️</button>`:''}${canDelete()?`<button class="btn-icon del" onclick="delEmp(${e.id})">🗑️</button>`:''}</div></td></tr>`;}).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin empleados</td></tr>';}
+function editarPagoHist(recepId, pIdx){
+  const r=DB.recepciones.find(x=>x.id===recepId);
+  if(!r||!r.pagosRegistrados||!r.pagosRegistrados[pIdx]) return;
+  const p=r.pagosRegistrados[pIdx];
+  const nuevoMonto=prompt(`Editar monto del pago\nTécnico: ${p.empNombre||''}\nConcepto: ${p.tipo||''} — ${p.pieza||''}\n\nMonto actual: RD$ ${Number(p.monto).toLocaleString('es-DO')}\n\nNuevo monto:`,p.monto);
+  if(nuevoMonto===null) return;
+  const m=parseFloat(nuevoMonto.replace(/[^0-9.]/g,''))||0;
+  if(!m){toast('Monto inválido','error');return;}
+  // Actualizar en caja también
+  const cajIdx=DB.caja.findIndex(c=>c.persona===p.empNombre&&c.monto===p.monto&&c.fecha===p.fecha);
+  if(cajIdx>=0) DB.caja[cajIdx].monto=m;
+  p.monto=m;
+  window.fbSaveDoc?.('recepciones',r);
+  if(cajIdx>=0) window.fbSaveDoc?.('caja',DB.caja[cajIdx]);
+  logBit('PAGO','Pago editado',`${p.empNombre||''} — Orden #${recepId} — ${fmt(m)}`);
+  toast('Pago actualizado ✓');
+  renderEmpPagosTab();
+  renderEmp();
+}
+
+function revertirPagoHist(recepId, pIdx){
+  const r=DB.recepciones.find(x=>x.id===recepId);
+  if(!r||!r.pagosRegistrados||!r.pagosRegistrados[pIdx]) return;
+  const p=r.pagosRegistrados[pIdx];
+  confirm2(`↩️ ¿Revertir pago de ${fmt(p.monto)} a ${p.empNombre||'técnico'}?\nEl trabajo quedará como pendiente de pago nuevamente.`, ok=>{
+    if(!ok) return;
+    // Marcar fila de matriz como no pagada
+    if(Array.isArray(r.matriz)&&r.matriz[p.filaIdx]){
+      r.matriz[p.filaIdx].pagado=false;
+      r.matriz[p.filaIdx].pagoTech=p.monto;
+    }
+    // Eliminar de pagosRegistrados
+    r.pagosRegistrados.splice(pIdx,1);
+    // Eliminar movimiento de caja
+    const cajIdx=DB.caja.findIndex(c=>c.persona===p.empNombre&&c.monto===p.monto&&c.fecha===p.fecha);
+    if(cajIdx>=0) DB.caja.splice(cajIdx,1);
+    window.fbSaveDoc?.('recepciones',r);
+    logBit('PAGO','Pago revertido',`${p.empNombre||''} — Orden #${recepId} — ${fmt(p.monto)}`);
+    toast('Pago revertido — trabajo vuelve a pendiente','info');
+    renderEmpPagosTab();
+    renderEmpTrabajos();
+    renderEmp();
+  });
+}
+
+function eliminarPagoHist(recepId, pIdx){
+  const r=DB.recepciones.find(x=>x.id===recepId);
+  if(!r||!r.pagosRegistrados||!r.pagosRegistrados[pIdx]) return;
+  const p=r.pagosRegistrados[pIdx];
+  confirm2(`🗑️ ¿Eliminar este registro de pago?\n${p.empNombre||''} — ${fmt(p.monto)}\n\nNota: el trabajo seguirá marcado como pagado.`, ok=>{
+    if(!ok) return;
+    r.pagosRegistrados.splice(pIdx,1);
+    window.fbSaveDoc?.('recepciones',r);
+    logBit('PAGO','Pago eliminado del historial',`${p.empNombre||''} — Orden #${recepId} — ${fmt(p.monto)}`);
+    toast('Registro eliminado','info');
+    renderEmpPagosTab();
+    renderEmp();
+  });
+}
+
+function renderEmp(s=''){
+  let d=DB.empleados;
+  if(s)d=d.filter(e=>(e.nombre+e.cargo).toLowerCase().includes(s.toLowerCase()));
+  // Pendientes: trabajos de recepciones no pagados con pagoTech asignado
+  const ajPT=DB.recepciones.reduce((a,r)=>{
+    return a+(Array.isArray(r.matriz)?r.matriz.filter(f=>!f.pagado&&f.techId&&(f.estado==='COMPLETADO'||f.estado==='TERMINADO')).reduce((b,f)=>b+(+f.pagoTech||0),0):0);
+  },0)+DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>!aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);
+  // Pagados: pagosRegistrados en recepciones
+  const ajPaT=DB.recepciones.reduce((a,r)=>a+(r.pagosRegistrados||[]).reduce((b,p)=>b+(+p.monto||0),0),0)+
+    DB.vehiculos.reduce((a,v)=>a+v.ajustes.filter(aj=>aj.pagado).reduce((b,aj)=>b+aj.monto,0),0);
+  const fiT=DB.empleados.filter(e=>e.tipo==='FIJO').reduce((a,e)=>a+e.tarifa,0);
+  document.getElementById('empStats').innerHTML=`<div class="stat-card blue"><div class="stat-icon">👷</div><div class="stat-value">${DB.empleados.length}</div><div class="stat-label">Total Empleados</div></div><div class="stat-card red"><div class="stat-icon">🔧</div><div class="stat-value">${DB.empleados.filter(e=>e.tipo==='AJUSTE').length}</div><div class="stat-label">Por Ajuste</div></div><div class="stat-card purple"><div class="stat-icon">💼</div><div class="stat-value">${fmt(fiT)}</div><div class="stat-label">Salarios Fijos/Mes</div></div><div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${fmt(ajPT)}</div><div class="stat-label">Ajustes Pendientes</div></div><div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${fmt(ajPaT)}</div><div class="stat-label">Ajustes Pagados</div></div>`;
+  document.getElementById('empTable').innerHTML=d.map(e=>{const tB=e.tipo==='FIJO'?'<span class="badge badge-secondary">💼 FIJO</span>':'<span class="badge badge-primary">🔧 AJUSTE</span>';return`<tr><td>${e.id}</td><td class="fw-600">${e.nombre}</td><td><span class="badge badge-info">${e.cargo}</span></td><td>${tB}</td><td>${e.tipo==='FIJO'?fmt(e.tarifa)+' / mes':'Por orden'}</td><td><span class="badge badge-success">${e.estado}</span></td><td><div class="flex gap-2"><button class="btn btn-sm btn-warning" onclick="openEmpPagos(${e.id})">💰 Pagos</button><button class="btn btn-sm btn-secondary" onclick="printReciboTecnico(${e.id})">🖨️ Recibo</button>${canEdit()?`<button class="btn-icon edit" onclick="openEmpModal(${e.id})">✏️</button>`:''}${canDelete()?`<button class="btn-icon del" onclick="delEmp(${e.id})">🗑️</button>`:''}</div></td></tr>`;}).join('')||'<tr><td colspan="7" class="text-center" style="padding:24px;color:var(--text2);">Sin empleados</td></tr>';
+}
 function onEmpTipoChange(){const t=document.getElementById('eTipo').value;document.getElementById('eTarifaLabel').textContent=t==='FIJO'?'Salario Mensual (RD$)':'Tarifa Referencial (RD$)';document.getElementById('empTipoInfo').innerHTML=t==='FIJO'?'💡 <strong>Salario Fijo:</strong> El empleado cobra un monto fijo mensual.':'💡 <strong>Por Ajuste:</strong> El admin registra manualmente el monto en cada orden. Gestione pagos con el botón 💵 en Órdenes de Trabajo.';}
 function openEmpModal(id=null){editId.e=id;document.getElementById('empModalTitle').textContent=id?'Editar Empleado':'Nuevo Empleado';if(id){const e=DB.empleados.find(x=>x.id===id);document.getElementById('eNombre').value=e.nombre;document.getElementById('eCargo').value=e.cargo;document.getElementById('eTipo').value=e.tipo;document.getElementById('eTarifa').value=e.tarifa;document.getElementById('eTel').value=e.tel;document.getElementById('eFecha').value=e.fecha;onEmpTipoChange();}else{['eNombre','eTel'].forEach(i=>document.getElementById(i).value='');document.getElementById('eTarifa').value='';document.getElementById('eCargo').value='PINTOR';document.getElementById('eTipo').value='AJUSTE';onEmpTipoChange();}openModal('empModal');}
 function saveEmp(){const n=document.getElementById('eNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),cargo:document.getElementById('eCargo').value,tipo:document.getElementById('eTipo').value,tarifa:+document.getElementById('eTarifa').value||0,tel:document.getElementById('eTel').value,fecha:document.getElementById('eFecha').value,estado:'ACTIVO'};if(editId.e){obj.id=editId.e;DB.empleados[DB.empleados.findIndex(x=>x.id===editId.e)]=obj;toast('Empleado actualizado ✓');}else{obj.id=DB.nxt.e++;DB.empleados.push(obj);toast('Empleado guardado ✓');}window.fbSaveDoc?.('empleados',obj);closeModal('empModal');renderEmp();}
@@ -4696,7 +4818,7 @@ function renderTechPortal(){
         : (techEmp&&techEmp.nombre.toLowerCase()===CU.nombre.toLowerCase());
       if(!isMyWork) return;
       if(fila.pagado) return; // ya pagado, desaparece
-      trabajos.push({recepId:r.id,filaIdx:idx,vehiculo:r.nombre,cliente:cl?.nombre||'—',color:r.color||'',tipo:fila.tipo||'—',pieza:fila.pieza||'—',estado:fila.estado||'PENDIENTE',fechaTerminado:fila.fechaTerminado||'',horaTerminado:fila.horaTerminado||''});
+      trabajos.push({recepId:r.id,filaIdx:idx,vehiculo:r.nombre,cliente:cl?.nombre||'—',color:r.color||'',tipo:fila.tipo||'—',pieza:fila.pieza||'—',estado:fila.estado||'PENDIENTE',fechaTerminado:fila.fechaTerminado||'',horaTerminado:fila.horaTerminado||'',comentario:fila.comentarioTech||''});
     });
   });
 
@@ -4733,6 +4855,12 @@ function renderTechPortal(){
       </div>
       <div class="tp-detail"><strong>${t.tipo}</strong> — ${t.pieza}</div>
       ${fechaInfo}
+      <div style="padding:8px 14px;">
+        <textarea class="form-control" rows="2" style="font-size:.8rem;resize:none;border-radius:7px;"
+          placeholder="💬 Comentario u observación (opcional)..."
+          oninput="techGuardarComentario(${t.recepId},${t.filaIdx},this.value)"
+        >${t.comentario||''}</textarea>
+      </div>
       ${(btnStart||btnDone||btnComp)?`<div class="tp-actions">${btnStart}${btnDone}${btnComp}</div>`:''}
     </div>`;
   }
@@ -4762,6 +4890,17 @@ function techUpdateEstado(recepId, filaIdx, nuevoEstado){
   window.fbSaveDoc?.('recepciones',r);
   toast(nuevoEstado==='EN PROCESO'?'▶ Trabajo iniciado':'✅ Trabajo marcado como terminado — '+new Date().toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}));
   setTimeout(renderTechPortal,400);
+}
+
+function techGuardarComentario(recepId, filaIdx, texto){
+  const r=DB.recepciones.find(x=>x.id===recepId);
+  if(!r||!Array.isArray(r.matriz)||!r.matriz[filaIdx]) return;
+  r.matriz[filaIdx].comentarioTech=texto.trim();
+  // Guardar con debounce para no saturar Firebase
+  clearTimeout(window._techComTimer);
+  window._techComTimer=setTimeout(()=>{
+    window.fbSaveDoc?.('recepciones',r);
+  },1200);
 }
 
 function closeWelcomeAndInit(){
