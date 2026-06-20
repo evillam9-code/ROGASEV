@@ -27,7 +27,7 @@ window._fbActivo = false;
 window._fbCargado = false;
 
 const FB_KEYS = ['users','clientes','empleados','suplidores','vehiculos','facturas',
-                 'caja','materiales','cxp','recepciones','bancos','kardex','bitacora','config'];
+                 'caja','materiales','cxp','recepciones','bancos','kardex','bitacora','config','nxt'];
 
 // ── Guardar una clave en Firestore ────────────────────────────────
 async function fbGuardar(key){
@@ -47,6 +47,7 @@ window.fbSaveDoc = async function(colName, item){
     if(idx>=0) DB[colName][idx]=item; else DB[colName].push(item);
   }
   await fbGuardar(colName);
+  await fbGuardar('nxt'); // mantener contadores de ID sincronizados entre dispositivos
 };
 
 window.fbDeleteDoc = async function(colName, id){
@@ -73,6 +74,10 @@ async function fbCargar(){
         if(val !== null){
           if(key==='config' && typeof val==='object'){
             DB.config = Object.assign({}, DB.config, val);
+          } else if(key==='nxt' && typeof val==='object'){
+            // Fusionar contadores tomando siempre el mayor (evita IDs duplicados)
+            DB.nxt = DB.nxt || {};
+            Object.keys(val).forEach(k=>{ DB.nxt[k] = Math.max(DB.nxt[k]||1, val[k]||1); });
           } else if(key==='users' && Array.isArray(val) && val.length>0){
             // Fusionar — Firebase tiene prioridad pero mantener admin local
             const merged = [...val];
@@ -126,6 +131,9 @@ function fbActivarListeners(){
         if(val===null) return;
         if(key==='config' && typeof val==='object'){
           DB.config = Object.assign({}, DB.config, val);
+        } else if(key==='nxt' && typeof val==='object'){
+          DB.nxt = DB.nxt || {};
+          Object.keys(val).forEach(k=>{ DB.nxt[k] = Math.max(DB.nxt[k]||1, val[k]||1); });
         } else if(key==='users' && Array.isArray(val)){
           const merged=[...val];
           (DB.users||[]).forEach(lu=>{if(!merged.find(u=>u.id===lu.id))merged.push(lu);});
@@ -214,6 +222,37 @@ async function fixRecepcionesIds(){
   }
 }
 
+// ── Corregir IDs duplicados en clientes (causa de "cliente equivocado") ──
+async function fixClientesIds(){
+  if(!DB.clientes || DB.clientes.length === 0) return;
+  const ids = DB.clientes.map(c => c.id);
+  const seen = new Set();
+  let huboDuplicados = false;
+  let maxId = Math.max(...ids.filter(x=>typeof x==='number' && !isNaN(x)), 0);
+  DB.clientes.forEach(c=>{
+    if(seen.has(c.id)){
+      // ID repetido: el primero en el arreglo conserva su ID (es el más antiguo),
+      // este (más reciente) recibe un ID nuevo para no seguir pisando registros viejos.
+      huboDuplicados = true;
+      maxId += 1;
+      c.id = maxId;
+    }
+    seen.add(c.id);
+  });
+  if(!DB.nxt) DB.nxt = {};
+  DB.nxt.c = Math.max(DB.nxt.c||1, maxId + 1);
+  if(huboDuplicados){
+    console.log('⚠️ IDs duplicados en clientes — corregidos automáticamente');
+    if(window._fbActivo){
+      try{
+        await fbGuardar('clientes');
+        await fbGuardar('nxt');
+        console.log('✅ IDs de clientes corregidos y guardados en Firebase');
+      }catch(e){ console.warn('Error guardando fix de clientes:', e.message); }
+    }
+  }
+}
+
 window.fbIniciar = async function(){
   try{
     const loaded = await fbCargar();
@@ -223,6 +262,7 @@ window.fbIniciar = async function(){
       console.log('✅ Firebase cargado — datos sincronizados');
       // ── Fix IDs duplicados en recepciones ──────────────────────
       await fixRecepcionesIds();
+      await fixClientesIds();
       window._fbCargado = true;
       fbActivarListeners();
     } else {
@@ -2011,7 +2051,7 @@ function renderClients(s=''){let d=DB.clientes;if(s)d=d.filter(c=>(c.nombre+(c.r
 function openClientModal(id=null){editId.c=id;document.getElementById('clientModalTitle').textContent=id?'Editar Cliente':'Nuevo Cliente';if(id){const c=DB.clientes.find(x=>x.id===id);document.getElementById('cNombre').value=c.nombre;document.getElementById('cTipoDoc').value=c.tipoDoc||'RNC';document.getElementById('cRnc').value=c.rnc;document.getElementById('cDir').value=c.dir;document.getElementById('cCiudad').value=c.ciudad;document.getElementById('cTel1').value=c.tel1;document.getElementById('cTel2').value=c.tel2;cTipoDocChange();}else{['cNombre','cRnc','cDir','cTel1','cTel2'].forEach(i=>document.getElementById(i).value='');document.getElementById('cCiudad').value='SANTIAGO';document.getElementById('cTipoDoc').value='RNC';cTipoDocChange();}openModal('clientModal');}
 function cTipoDocChange(){const t=document.getElementById('cTipoDoc').value;const lbl=document.getElementById('cRncLabel');const inp=document.getElementById('cRnc');if(t==='RNC'){lbl.textContent='RNC (000-000000-0)';inp.placeholder='000-000000-0';}else{lbl.textContent='Cédula (000-0000000-0)';inp.placeholder='000-0000000-0';}inp.value='';}
 function cFmtDoc(){const t=document.getElementById('cTipoDoc').value;let v=document.getElementById('cRnc').value.replace(/[^0-9]/g,'');if(t==='RNC'){if(v.length>3)v=v.slice(0,3)+'-'+v.slice(3);if(v.length>10)v=v.slice(0,10)+'-'+v.slice(10,11);}else{if(v.length>3)v=v.slice(0,3)+'-'+v.slice(3);if(v.length>11)v=v.slice(0,11)+'-'+v.slice(11,12);}document.getElementById('cRnc').value=v.slice(0,13);}
-function saveClient(){const n=document.getElementById('cNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),tipoDoc:document.getElementById('cTipoDoc').value,rnc:document.getElementById('cRnc').value,dir:document.getElementById('cDir').value,ciudad:document.getElementById('cCiudad').value.toUpperCase(),tel1:document.getElementById('cTel1').value,tel2:document.getElementById('cTel2').value};if(editId.c){obj.id=editId.c;DB.clientes[DB.clientes.findIndex(x=>x.id===editId.c)]=obj;toast('Cliente actualizado ✓');}else{obj.id=DB.nxt.c++;DB.clientes.push(obj);toast('Cliente guardado ✓');}window.fbSaveDoc?.('clientes',obj);closeModal('clientModal');renderClients();}
+function saveClient(){const n=document.getElementById('cNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),tipoDoc:document.getElementById('cTipoDoc').value,rnc:document.getElementById('cRnc').value,dir:document.getElementById('cDir').value,ciudad:document.getElementById('cCiudad').value.toUpperCase(),tel1:document.getElementById('cTel1').value,tel2:document.getElementById('cTel2').value};if(editId.c){obj.id=editId.c;DB.clientes[DB.clientes.findIndex(x=>x.id===editId.c)]=obj;toast('Cliente actualizado ✓');}else{const maxId=DB.clientes.length?Math.max(...DB.clientes.map(c=>c.id||0)):0;obj.id=Math.max(DB.nxt.c||1,maxId+1);DB.nxt.c=obj.id+1;DB.clientes.push(obj);toast('Cliente guardado ✓');}window.fbSaveDoc?.('clientes',obj);closeModal('clientModal');renderClients();}
 function delClient(id){confirm2('¿Eliminar cliente?',function(ok){if(!ok)return;DB.clientes=DB.clientes.filter(x=>x.id!==id);window.fbDeleteDoc?.('clientes',id);renderClients();toast('Eliminado','info');});}
 function switchVehTab(tab){
   ['ordenes','recepciones','materiales'].forEach(t=>{
@@ -2595,7 +2635,7 @@ function renderEmp(s=''){
 }
 function onEmpTipoChange(){const t=document.getElementById('eTipo').value;document.getElementById('eTarifaLabel').textContent=t==='FIJO'?'Salario Mensual (RD$)':'Tarifa Referencial (RD$)';document.getElementById('empTipoInfo').innerHTML=t==='FIJO'?'💡 <strong>Salario Fijo:</strong> El empleado cobra un monto fijo mensual.':'💡 <strong>Por Ajuste:</strong> El admin registra manualmente el monto en cada orden. Gestione pagos con el botón 💵 en Órdenes de Trabajo.';}
 function openEmpModal(id=null){editId.e=id;document.getElementById('empModalTitle').textContent=id?'Editar Empleado':'Nuevo Empleado';if(id){const e=DB.empleados.find(x=>x.id===id);document.getElementById('eNombre').value=e.nombre;document.getElementById('eCargo').value=e.cargo;document.getElementById('eTipo').value=e.tipo;document.getElementById('eTarifa').value=e.tarifa;document.getElementById('eTel').value=e.tel;document.getElementById('eFecha').value=e.fecha;onEmpTipoChange();}else{['eNombre','eTel'].forEach(i=>document.getElementById(i).value='');document.getElementById('eTarifa').value='';document.getElementById('eCargo').value='PINTOR';document.getElementById('eTipo').value='AJUSTE';onEmpTipoChange();}openModal('empModal');}
-function saveEmp(){const n=document.getElementById('eNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),cargo:document.getElementById('eCargo').value,tipo:document.getElementById('eTipo').value,tarifa:+document.getElementById('eTarifa').value||0,tel:document.getElementById('eTel').value,fecha:document.getElementById('eFecha').value,estado:'ACTIVO'};if(editId.e){obj.id=editId.e;DB.empleados[DB.empleados.findIndex(x=>x.id===editId.e)]=obj;toast('Empleado actualizado ✓');}else{obj.id=DB.nxt.e++;DB.empleados.push(obj);toast('Empleado guardado ✓');}window.fbSaveDoc?.('empleados',obj);closeModal('empModal');renderEmp();}
+function saveEmp(){const n=document.getElementById('eNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),cargo:document.getElementById('eCargo').value,tipo:document.getElementById('eTipo').value,tarifa:+document.getElementById('eTarifa').value||0,tel:document.getElementById('eTel').value,fecha:document.getElementById('eFecha').value,estado:'ACTIVO'};if(editId.e){obj.id=editId.e;DB.empleados[DB.empleados.findIndex(x=>x.id===editId.e)]=obj;toast('Empleado actualizado ✓');}else{const maxId=DB.empleados.length?Math.max(...DB.empleados.map(x=>x.id||0)):0;obj.id=Math.max(DB.nxt.e||1,maxId+1);DB.nxt.e=obj.id+1;DB.empleados.push(obj);toast('Empleado guardado ✓');}window.fbSaveDoc?.('empleados',obj);closeModal('empModal');renderEmp();}
 function openEmpPagos(empId){
   const e=DB.empleados.find(x=>x.id===empId);
   if(!e) return;
@@ -2711,7 +2751,7 @@ function delEmp(id){confirm2('¿Eliminar empleado?',function(ok){if(!ok)return;D
 function openSupModal(id=null){editId.s=id;document.getElementById('supModalTitle').textContent=id?'Editar Suplidor':'Nuevo Suplidor';if(id){const s=DB.suplidores.find(x=>x.id===id);document.getElementById('sNombre').value=s.nombre;document.getElementById('sTipoDoc').value=s.tipoDoc||'RNC';document.getElementById('sNcf').value=s.ncf;document.getElementById('sDir').value=s.dir;document.getElementById('sCiudad').value=s.ciudad;document.getElementById('sTel1').value=s.tel1;document.getElementById('sTel2').value=s.tel2;sTipoDocChange();}else{['sNombre','sNcf','sDir','sCiudad','sTel1','sTel2'].forEach(i=>document.getElementById(i).value='');document.getElementById('sTipoDoc').value='RNC';sTipoDocChange();}openModal('supModal');}
 function sTipoDocChange(){const t=document.getElementById('sTipoDoc').value;const lbl=document.getElementById('sRncLabel');const inp=document.getElementById('sNcf');if(t==='RNC'){lbl.textContent='RNC (000-000000-0)';inp.placeholder='000-000000-0';}else{lbl.textContent='Cédula (000-0000000-0)';inp.placeholder='000-0000000-0';}inp.value='';}
 function sFmtDoc(){const t=document.getElementById('sTipoDoc').value;let v=document.getElementById('sNcf').value.replace(/[^0-9]/g,'');if(t==='RNC'){if(v.length>3)v=v.slice(0,3)+'-'+v.slice(3);if(v.length>10)v=v.slice(0,10)+'-'+v.slice(10,11);}else{if(v.length>3)v=v.slice(0,3)+'-'+v.slice(3);if(v.length>11)v=v.slice(0,11)+'-'+v.slice(11,12);}document.getElementById('sNcf').value=v.slice(0,13);}
-function saveSup(){const n=document.getElementById('sNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),tipoDoc:document.getElementById('sTipoDoc').value,ncf:document.getElementById('sNcf').value,dir:document.getElementById('sDir').value,ciudad:document.getElementById('sCiudad').value.toUpperCase(),tel1:document.getElementById('sTel1').value,tel2:document.getElementById('sTel2').value};if(editId.s){obj.id=editId.s;DB.suplidores[DB.suplidores.findIndex(x=>x.id===editId.s)]=obj;toast('Suplidor actualizado ✓');}else{obj.id=DB.nxt.s++;DB.suplidores.push(obj);toast('Suplidor guardado ✓');}window.fbSaveDoc?.('suplidores',obj);closeModal('supModal');renderSup();}
+function saveSup(){const n=document.getElementById('sNombre').value.trim();if(!n){toast('Ingrese nombre','error');return;}const obj={nombre:n.toUpperCase(),tipoDoc:document.getElementById('sTipoDoc').value,ncf:document.getElementById('sNcf').value,dir:document.getElementById('sDir').value,ciudad:document.getElementById('sCiudad').value.toUpperCase(),tel1:document.getElementById('sTel1').value,tel2:document.getElementById('sTel2').value};if(editId.s){obj.id=editId.s;DB.suplidores[DB.suplidores.findIndex(x=>x.id===editId.s)]=obj;toast('Suplidor actualizado ✓');}else{const maxId=DB.suplidores.length?Math.max(...DB.suplidores.map(x=>x.id||0)):0;obj.id=Math.max(DB.nxt.s||1,maxId+1);DB.nxt.s=obj.id+1;DB.suplidores.push(obj);toast('Suplidor guardado ✓');}window.fbSaveDoc?.('suplidores',obj);closeModal('supModal');renderSup();}
 function delSup(id){confirm2('¿Eliminar suplidor?',function(ok){if(!ok)return;DB.suplidores=DB.suplidores.filter(x=>x.id!==id);renderSup();toast('Eliminado','info');});}
 function renderCaja(f='',s=''){let d=DB.caja;if(f)d=d.filter(c=>c.mover===f);if(s)d=d.filter(c=>(c.desc+c.persona+c.cuenta).toLowerCase().includes(s.toLowerCase()));const en=DB.caja.filter(c=>c.mover==='ENTRADA').reduce((a,c)=>a+c.monto,0);const sa=DB.caja.filter(c=>c.mover==='SALIDA').reduce((a,c)=>a+c.monto,0);document.getElementById('cajaStats').innerHTML=`<div class="stat-card green"><div class="stat-icon">⬆️</div><div class="stat-value">${fmt(en)}</div><div class="stat-label">Total Entradas</div></div><div class="stat-card red"><div class="stat-icon">⬇️</div><div class="stat-value">${fmt(sa)}</div><div class="stat-label">Total Salidas</div></div><div class="stat-card blue"><div class="stat-icon">💳</div><div class="stat-value">${fmt(en-sa)}</div><div class="stat-label">Balance</div></div><div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${DB.caja.filter(c=>c.estatus==='POR PAGAR').length}</div><div class="stat-label">Por Pagar</div></div>`;const sM={PAGADO:'success','POR PAGAR':'warning',COBRADO:'info','POR COBRAR':'danger','EN TRÁNSITO':'info',ANULADO:'danger',DEPOSITADO:'success'};document.getElementById('cajaTable').innerHTML=d.map(c=>{const mv=c.mover==='ENTRADA'?'<span class="text-success fw-600">⬆️ ENT.</span>':'<span class="text-danger fw-600">⬇️ SAL.</span>';return`<tr><td>${c.id}</td><td>${fmtD(c.fecha)}</td><td style="font-size:.8rem;">${c.tipo}</td><td style="font-size:.76rem;">${c.cuenta}</td><td style="font-size:.82rem;">${c.desc}</td><td>${c.factura||'-'}</td><td>${mv}</td><td>${c.moneda}</td><td class="fw-600 ${c.mover==='ENTRADA'?'text-success':'text-danger'}">${fmt(c.monto)}</td><td><span class="badge badge-${sM[c.estatus]||'info'}">${c.estatus}</span></td><td><div class="flex gap-2"><button class="btn-icon edit" onclick="openCajaModal(${c.id})">✏️</button>${canDelete()?`<button class="btn-icon del" onclick="delCaja(${c.id})">🗑️</button>`:''}</div></td></tr>`;}).join('')||'<tr><td colspan="11" class="text-center" style="padding:24px;color:var(--text2);">Sin movimientos</td></tr>';}
 function openCajaModal(id=null){editId.cj=id;document.getElementById('cajaModalTitle').textContent=id?'Editar Movimiento':'Nuevo Movimiento';document.getElementById('cajFecha').value=new Date().toISOString().split('T')[0];if(id){const c=DB.caja.find(x=>x.id===id);document.getElementById('cajFecha').value=c.fecha;document.getElementById('cajTipo').value=c.tipo;document.getElementById('cajCuenta').value=c.cuenta;document.getElementById('cajMover').value=c.mover;document.getElementById('cajMoneda').value=c.moneda;const cajM=document.getElementById('cajMonto');cajM.value=c.monto?Number(c.monto).toLocaleString('es-DO'):'';cajM.dataset.rawVal=c.monto||'';document.getElementById('cajFact').value=c.factura;document.getElementById('cajEst').value=c.estatus;document.getElementById('cajDesc').value=c.desc;document.getElementById('cajPersona').value=c.persona;}else{['cajFact','cajDesc','cajPersona'].forEach(i=>document.getElementById(i).value='');const cajM=document.getElementById('cajMonto');cajM.value='';cajM.dataset.rawVal='';}openModal('cajaModal');}
