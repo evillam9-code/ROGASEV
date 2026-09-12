@@ -772,7 +772,7 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
     <nav class="sidebar-nav" id="sidebarNav">
       <div class="nav-section">Principal</div>
       <div class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard"><span class="icon">📊</span>Dashboard</div>
-      <div class="nav-item" onclick="showPage('recepcion')" data-page="recepcion"><span class="icon">📋</span>Recepción</div>
+      <div class="nav-item" onclick="showPage('recepcion')" data-page="recepcion"><span class="icon">📋</span>Cotizaciones</div>
       <div class="nav-section">Operaciones</div>
       <div class="nav-item" onclick="showPage('bancos')" data-page="bancos"><span class="icon">🏦</span>Cuentas Bancarias</div>
       <div class="nav-item" onclick="showPage('suplidores')" data-page="suplidores"><span class="icon">🏭</span>Suplidores</div>
@@ -1094,13 +1094,13 @@ input:checked+.toggle-slider:before{transform:translateX(22px);background:#fff;}
     <!-- RECEPCIÓN DE VEHÍCULO -->
     <div class="page" id="page-recepcion">
       <div class="page-header">
-        <div><div class="page-title">📋 Recepción de Vehículo</div><div class="page-subtitle">Registro de entrada, asignación de trabajos y prefactura</div></div>
-        <button class="btn btn-primary" onclick="openRecepcionModal()">+ Nueva Recepción</button>
+        <div><div class="page-title">📋 Cotizaciones</div><div class="page-subtitle">Registro de entrada, asignación de trabajos y prefactura</div></div>
+        <button class="btn btn-primary" onclick="openRecepcionModal()">+ Nueva Cotización</button>
       </div>
       <div class="stats-grid" id="recepStats"></div>
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Recepciones Registradas</span>
+          <span class="card-title">Cotizaciones Registradas</span>
           <div class="search-box"><input type="text" placeholder="Buscar..." oninput="renderRecepcion(this.value)"></div>
         </div>
         <div class="table-wrap">
@@ -2925,7 +2925,7 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
 <div class="modal-overlay" id="recepModal">
   <div class="modal modal-lg" style="max-width:900px;">
     <div class="modal-header">
-      <span class="modal-title" id="recepModalTitle">Nueva Recepción</span>
+      <span class="modal-title" id="recepModalTitle">Nueva Cotización</span>
       <button class="modal-close" onclick="closeModal('recepModal')">✕</button>
     </div>
     <div class="modal-body">
@@ -2968,12 +2968,16 @@ function delUser(id){confirm2('¿Eliminar usuario?',function(ok){if(!ok)return;D
             <thead><tr style="background:#e8edf5;">
               <th style="padding:8px 10px;text-align:left;">Tipo de Trabajo</th>
               <th style="padding:8px 10px;text-align:left;">Pieza</th>
-              <th style="padding:8px 10px;text-align:left;">Técnico</th>
-              <th style="padding:8px 10px;text-align:left;">Precio Cliente (RD$)</th>
+              <th style="padding:8px 10px;text-align:left;">Cantidad</th>
+              <th style="padding:8px 10px;text-align:left;">Precio Trabajo (RD$)</th>
+              <th style="padding:8px 10px;text-align:right;">Sub Total (RD$)</th>
               <th style="padding:8px 4px;"></th>
             </tr></thead>
             <tbody id="rpMatrizTbl"></tbody>
           </table>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.95rem;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+          <span>Total General:</span><span id="rpMatrizTotal">RD$ 0</span>
         </div>
         <div style="font-size:.75rem;color:var(--text2);margin-top:6px;">💡 Puedes escribir cualquier tipo de trabajo o pieza personalizada</div>
       </div>
@@ -4198,12 +4202,13 @@ function rpGetServs(){
 }
 
 function rpCalcTotal(){
-  const subtotal=(rpMatriz||[]).reduce((a,r)=>a+(+r.precioCliente||0),0);
+  const subtotal=(rpMatriz||[]).reduce((a,r)=>a+((+r.cantidad||1)*(+r.precioCliente||0)),0);
   const dcEl=document.getElementById('rpDcto');
   const dc=parseFloat((dcEl?.dataset.rawVal||dcEl?.value||'0').replace(/[^0-9.]/g,''))||0;
   const itbisOn=document.getElementById('rpItbisToggle')?.checked;
   const itbis=itbisOn?Math.round(subtotal*0.18):0;
   const total=subtotal+itbis-dc;
+  if(document.getElementById('rpMatrizTotal')) document.getElementById('rpMatrizTotal').textContent=fmt(subtotal);
   if(document.getElementById('rpMoEst')) document.getElementById('rpMoEst').value=subtotal||'';
   if(document.getElementById('rpTMo')) document.getElementById('rpTMo').textContent=fmt(subtotal);
   if(document.getElementById('rpTItbis')) document.getElementById('rpTItbis').textContent=itbisOn?fmt(itbis):'No aplica';
@@ -4411,10 +4416,8 @@ function rpUpdateDiagram(){
 function rpRenderMatriz(){
   const tbody = document.getElementById('rpMatrizTbl');
   if(!tbody) return;
-  const empOpts = '<option value="">— Sin asignar —</option>' +
-    DB.empleados.filter(e=>e.estado==='ACTIVO').map(e=>`<option value="${e.id}">${e.nombre} (${e.cargo})</option>`).join('');
   if(!rpMatriz.length){
-    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text2);font-size:.82rem;">Haz clic en "+ Agregar Trabajo" para añadir trabajos a la orden</td></tr>';
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text2);font-size:.82rem;">Haz clic en "+ Agregar Trabajo" para añadir trabajos a la orden</td></tr>';
     return;
   }
   tbody.innerHTML = rpMatriz.map((row,i)=>`
@@ -4428,19 +4431,27 @@ function rpRenderMatriz(){
           oninput="rpMatriz[${i}].pieza=this.value" placeholder="Pieza o descripción">
       </td>
       <td style="padding:6px 6px;">
-        <select class="form-control" style="font-size:.78rem;padding:5px 6px;" onchange="rpMatriz[${i}].techId=this.value">
-          ${empOpts.replace(`value="${row.techId||''}"`,`value="${row.techId||''}" selected`)}
-        </select>
+        <input type="number" min="1" step="1" class="form-control" style="font-size:.8rem;padding:5px 8px;width:70px;"
+          value="${row.cantidad||1}"
+          oninput="rpMatriz[${i}].cantidad=parseFloat(this.value)||0;rpUpdateFilaSubtotal(${i});rpCalcTotal()">
       </td>
       <td style="padding:6px 6px;">
         <input type="text" inputmode="decimal" class="form-control" style="font-size:.8rem;padding:5px 8px;width:110px;" placeholder="0"
           value="${row.precioCliente?Number(row.precioCliente).toLocaleString('es-DO'):''}"
-          oninput="fmtPesosInput(this);rpMatriz[${i}].precioCliente=parseFloat((this.dataset.rawVal||this.value).replace(/[^0-9.]/g,''))||0;rpCalcTotal()">
+          oninput="fmtPesosInput(this);rpMatriz[${i}].precioCliente=parseFloat((this.dataset.rawVal||this.value).replace(/[^0-9.]/g,''))||0;rpUpdateFilaSubtotal(${i});rpCalcTotal()">
       </td>
+      <td style="padding:6px 6px;text-align:right;font-weight:600;" id="rpFilaSub_${i}">${fmt((+row.cantidad||0)*(+row.precioCliente||0))}</td>
       <td style="padding:6px 4px;text-align:center;">
         <button class="btn-icon del" onclick="delete rpMatriz[${i}];rpMatriz=rpMatriz.filter((_,j)=>j!==${i});rpRenderMatriz();rpCalcTotal()">✕</button>
       </td>
     </tr>`).join('');
+}
+
+function rpUpdateFilaSubtotal(i){
+  const row=rpMatriz[i];
+  if(!row) return;
+  const el=document.getElementById('rpFilaSub_'+i);
+  if(el) el.textContent=fmt((+row.cantidad||0)*(+row.precioCliente||0));
 }
 
 function rpTipoChange(i, val){
@@ -4457,7 +4468,7 @@ function rpTipoChange(i, val){
 
 
 function rpAddFila(){
-  rpMatriz.push({tipo:'',pieza:'',techId:'',precioCliente:0,estado:'PENDIENTE'});
+  rpMatriz.push({tipo:'',pieza:'',cantidad:1,precioCliente:0,estado:'PENDIENTE'});
   rpRenderMatriz();
   rpCalcTotal();
   // Scroll to last row
@@ -4470,7 +4481,7 @@ function openRecepcionModal(id=null){
   rpMatriz=[];
   rpPiezas={};
   rpSpecials={};
-  document.getElementById('recepModalTitle').textContent=id?'Editar Recepción':'Nueva Recepción';
+  document.getElementById('recepModalTitle').textContent=id?'Editar Cotización':'Nueva Cotización';
   document.getElementById('rpCliente').innerHTML=DB.clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
   ['rpNombre','rpChasis','rpColor','rpKm','rpNotas'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
   document.getElementById('rpFecha').value=new Date().toISOString().split('T')[0];
@@ -4494,15 +4505,15 @@ function openRecepcionModal(id=null){
       if(feEl) feEl.value=r.fechaEntrega||'';
       // Cargar matriz dinámica
       if(Array.isArray(r.matriz) && r.matriz.length){
-        rpMatriz=JSON.parse(JSON.stringify(r.matriz));
+        rpMatriz=JSON.parse(JSON.stringify(r.matriz)).map(row=>({...row,cantidad:row.cantidad||1}));
       } else {
         // Migración desde formato antiguo (piezas+specials)
         rpMatriz=[];
         Object.entries(r.piezas||{}).forEach(([p,d])=>{
-          rpMatriz.push({tipo:d.tipo||'Pintar',pieza:p,techId:d.techId||'',precioCliente:d.precioCliente||0,estado:d.estado||'PENDIENTE'});
+          rpMatriz.push({tipo:d.tipo||'Pintar',pieza:p,cantidad:1,precioCliente:d.precioCliente||0,estado:d.estado||'PENDIENTE'});
         });
         Object.values(r.specials||{}).forEach(d=>{
-          rpMatriz.push({tipo:'Adicional',pieza:d.label||'',techId:d.techId||'',precioCliente:d.precioCliente||0,estado:d.estado||'PENDIENTE'});
+          rpMatriz.push({tipo:'Adicional',pieza:d.label||'',cantidad:1,precioCliente:d.precioCliente||0,estado:d.estado||'PENDIENTE'});
         });
       }
     }
@@ -4521,7 +4532,7 @@ function saveRecepcion(imprimir=false){
   // Validación pre-guardado
   if(!rpMatriz.length){toast('Agregue al menos un trabajo a la orden','error');return;}
   const dc=+document.getElementById('rpDcto').value||0;
-  const subtotal=rpMatriz.reduce((a,r)=>a+(+r.precioCliente||0),0);
+  const subtotal=rpMatriz.reduce((a,r)=>a+((+r.cantidad||1)*(+r.precioCliente||0)),0);
   const itbisOn=document.getElementById('rpItbisToggle')?.checked;
   const itbis=itbisOn?Math.round(subtotal*0.18):0;
   const totalEst=subtotal+itbis-dc;
@@ -4550,14 +4561,14 @@ function saveRecepcion(imprimir=false){
     obj.id=rpEditId;
     const idx=DB.recepciones.findIndex(x=>x.id===rpEditId);
     if(idx>=0) DB.recepciones[idx]=obj;
-    toast('Recepción actualizada ✓');
+    toast('Cotización actualizada ✓');
   } else {
     // Generar # ORDEN único y siempre creciente
     const maxId = DB.recepciones.length ? Math.max(...DB.recepciones.map(r=>r.id||0)) : 0;
     obj.id = Math.max(DB.nxt.rp, maxId+1);
     DB.nxt.rp = obj.id + 1;
     DB.recepciones.push(obj);
-    toast('Recepción guardada ✓');
+    toast('Cotización guardada ✓');
   }
   window.fbSaveDoc?.('recepciones',obj);
   logBit('ORDEN','Nueva recepción',`${obj.nombre} — ${DB.clientes.find(c=>c.id===obj.clienteId)?.nombre||'-'}`);
@@ -4574,7 +4585,7 @@ function renderRecepcion(s=''){
   const recibidos=DB.recepciones.filter(r=>r.estado==='RECIBIDO').length;
   const proceso=DB.recepciones.filter(r=>r.estado==='EN PROCESO').length;
   document.getElementById('recepStats').innerHTML=`
-    <div class="stat-card blue"><div class="stat-icon">📋</div><div class="stat-value">${total}</div><div class="stat-label">Total Recepciones</div></div>
+    <div class="stat-card blue"><div class="stat-icon">📋</div><div class="stat-value">${total}</div><div class="stat-label">Total Cotizaciones</div></div>
     <div class="stat-card orange"><div class="stat-icon">🚗</div><div class="stat-value">${recibidos}</div><div class="stat-label">Recibidos</div></div>
     <div class="stat-card green"><div class="stat-icon">⚙️</div><div class="stat-value">${proceso}</div><div class="stat-label">En Proceso</div></div>`;
   let d=[...DB.recepciones].sort((a,b)=>(b.id||0)-(a.id||0));
@@ -4612,16 +4623,16 @@ function renderRecepcion(s=''){
         ${canDelete()?`<button class="btn-icon del" onclick="delRecepcion(${r.id})">🗑️</button>`:''}
       </div></td>
     </tr>`;
-  }).join(''):'<tr><td colspan="9" class="text-center" style="padding:24px;color:var(--text2);">Sin recepciones registradas</td></tr>';
+  }).join(''):'<tr><td colspan="9" class="text-center" style="padding:24px;color:var(--text2);">Sin cotizaciones registradas</td></tr>';
 }
 
-function delRecepcion(id){confirm2('¿Eliminar recepción?',ok=>{if(!ok)return;DB.recepciones=DB.recepciones.filter(x=>x.id!==id);renderRecepcion();toast('Eliminada','info');});}
+function delRecepcion(id){confirm2('¿Eliminar cotización?',ok=>{if(!ok)return;DB.recepciones=DB.recepciones.filter(x=>x.id!==id);renderRecepcion();toast('Eliminada','info');});}
 
 // ─── IMPRIMIR PREFACTURA ─────────────────────────────────────────────
 
 function printPrefactura(id){
   const r=DB.recepciones.find(x=>x.id===id);
-  if(!r){toast('Recepción no encontrada','error');return;}
+  if(!r){toast('Cotización no encontrada','error');return;}
   const cl=DB.clientes.find(c=>c.id===r.clienteId);
   const cfg=DB.config||{nombre:'ROGASEV Auto Servicios',dir:'Carretera la Penda, La Vega–Santiago',tel:'809-854-3148'};
   const fecha=new Date((r.fecha||new Date().toISOString().split('T')[0])+'T12:00:00').toLocaleDateString('es-DO',{year:'numeric',month:'long',day:'numeric'});
