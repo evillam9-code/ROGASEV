@@ -14,11 +14,7 @@
 
 \- Si te adjunto un archivo de word me das el resumen de lo solicitado que hagas, uno por uno con sus sub tareas si las tiene.
 
+\- Hacer lo que solo te pido sin tocar nada mas.
+
 \- No inicie a ejecutar sin haberte dado la aprobación de que todo esta claro y correcto.
-
-
-
-
-
-
 
