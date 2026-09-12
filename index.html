@@ -38,9 +38,23 @@ async function fbGuardar(key){
 }
 window.fbGuardar = fbGuardar;
 
+// ── Traer la versión más reciente de una colección antes de sobrescribirla ──
+// Evita que un guardado/borrado con datos locales desactualizados (otra pestaña
+// o dispositivo) borre o duplique registros al sobrescribir todo el documento.
+async function fbRefrescarColeccion(colName){
+  try{
+    const snap = await _fbDB.collection(_fbCol).doc(colName).get();
+    if(snap.exists){
+      const remote = JSON.parse(snap.data().valor);
+      if(Array.isArray(remote)) DB[colName] = remote;
+    }
+  }catch(e){ console.warn('fbRefrescarColeccion error:', colName, e.message); }
+}
+
 // ── Guardar múltiples claves (para saves individuales) ────────────
 window.fbSaveDoc = async function(colName, item){
   if(!window._fbActivo) return;
+  await fbRefrescarColeccion(colName);
   // Actualizar el array en DB y guardar toda la colección
   if(Array.isArray(DB[colName])){
     const idx = DB[colName].findIndex(x=>x.id===item.id);
@@ -52,6 +66,7 @@ window.fbSaveDoc = async function(colName, item){
 
 window.fbDeleteDoc = async function(colName, id){
   if(!window._fbActivo) return;
+  await fbRefrescarColeccion(colName);
   if(Array.isArray(DB[colName])){
     DB[colName] = DB[colName].filter(x=>x.id!=id);
   }
