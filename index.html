@@ -4521,8 +4521,10 @@ function openRecepcionModal(id=null){
   rpRenderMatriz();
   rpCalcTotal();
   // Populate banco select
-  const bc=document.getElementById('rpCuentaBanco');
-  if(bc) bc.innerHTML='<option value="">— Seleccionar cuenta —</option>'+(DB.bancos||[]).map(b=>`<option value="${b.id}">${b.nombre}</option>`).join('');
+  populateBancosSelects();
+  document.querySelectorAll('input[name="rpPagoTipo"]').forEach(el=>el.checked=el.id==='rpPagoNinguno');
+  ['rpPagoMonto','rpCuentaBanco'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  rpTogglePago();
   openModal('recepModal');
 }
 
@@ -4570,6 +4572,7 @@ function saveRecepcion(imprimir=false){
     DB.recepciones.push(obj);
     toast('Cotización guardada ✓');
   }
+  procesarPagoRecepcion(obj.id);
   window.fbSaveDoc?.('recepciones',obj);
   logBit('ORDEN','Nueva recepción',`${obj.nombre} — ${DB.clientes.find(c=>c.id===obj.clienteId)?.nombre||'-'}`);
   closeModal('recepModal');
@@ -5322,11 +5325,12 @@ function procesarPagoRecepcion(recId){
   const monto=+(document.getElementById('rpPagoMonto')?.value)||0;
   if(monto<=0) return;
   const forma=document.getElementById('rpPagoForma')?.value||'Efectivo';
+  const cuentaBancoId=document.getElementById('rpCuentaBanco')?.value||'';
   const r=DB.recepciones.find(x=>x.id===recId);
   const cl=DB.clientes.find(c=>c.id===r?.clienteId);
-  DB.caja.push({id:DB.nxt.caj++,fecha:new Date().toISOString().split('T')[0],concepto:`Adelanto Recep.#${String(recId).padStart(4,'0')} — ${cl?.nombre||''}`,mover:'ENTRADA',monto,ref:`Recep-${recId}`});
-  if(r){r.pagoInicial=monto;r.pagoForma=forma;r.pagoTipo=tipo;r.pendiente=Math.max(0,(r.totalEst||0)-monto);}
-  logBit('CAJA','Adelanto recepción',`${cl?.nombre||''} — ${fmt(monto)} — ${forma}`);
+  DB.caja.push({id:DB.nxt.caj++,fecha:new Date().toISOString().split('T')[0],concepto:`Adelanto Cotización #${String(recId).padStart(4,'0')} — ${cl?.nombre||''}`,mover:'ENTRADA',monto,cuenta:cuentaBancoId,tipo:forma,moneda:'PESOS',estatus:'COBRADO',ref:`Recep-${recId}`,desc:`Adelanto cotización #${recId}`,persona:cl?.nombre||''});
+  if(r){r.pagoInicial=monto;r.pagoForma=forma;r.pagoTipo=tipo;r.cuentaBancoId=cuentaBancoId;r.pendiente=Math.max(0,(r.totalEst||0)-monto);}
+  logBit('CAJA','Adelanto cotización',`${cl?.nombre||''} — ${fmt(monto)} — ${forma}`);
   toast(`💵 ${fmt(monto)} registrado en caja`,'info');
 }
 
